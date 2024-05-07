@@ -664,9 +664,9 @@ def generate_input_matrices(alnlist_filename, hypothesis_filename_list, args):
 			preprocess_cwd = "."
 	if not modified_response:
 		# Construct preprocessing command for first hypothesis file
-		preprocess_cmd = "{} {} {} {} {}".format(preprocess_exe, os.path.join(os.getcwd(), hypothesis_filename_list[0]), alnlist_filename, output_basename, options)
-		print(preprocess_cmd)
-		subprocess.call(preprocess_cmd.split(" "), stderr=subprocess.STDOUT, cwd=preprocess_cwd)
+		preprocess_cmd = "{}*{}*{}*{}*{}".format(preprocess_exe, os.path.join(os.getcwd(), hypothesis_filename_list[0]), alnlist_filename, output_basename, options)
+		print(preprocess_cmd.replace("*"," "))
+		subprocess.call(preprocess_cmd.split("*"), stderr=subprocess.STDOUT, cwd=preprocess_cwd)
 		# Move generated inputs to top level directory
 		if preprocess_cwd != ".":
 			shutil.move(os.path.join(preprocess_cwd, output_basename), ".")
@@ -706,8 +706,8 @@ def generate_input_matrices(alnlist_filename, hypothesis_filename_list, args):
 	else:
 		for filename in hypothesis_filename_list:
 			# Construct preprocessing command
-			preprocess_cmd = "{} {} {} {} {}".format(preprocess_exe, os.path.join(os.getcwd(), filename), alnlist_filename, output_basename, options)
-			print(preprocess_cmd)
+			preprocess_cmd = "{}*{}*{}*{}*{}".format(preprocess_exe, os.path.join(os.getcwd(), filename), alnlist_filename, output_basename, options)
+			print(preprocess_cmd.replace("*"," "))
 			hypothesis_basename = os.path.splitext(os.path.basename(filename))[0]
 			if args.skip_preprocessing:
 				if os.path.exists(os.path.join(output_basename, "feature_" + hypothesis_basename + ".txt")):
@@ -715,7 +715,7 @@ def generate_input_matrices(alnlist_filename, hypothesis_filename_list, args):
 				else:
 					raise Exception("Preprocessing skipped, but no features file detected at {}.".format(os.path.join(output_basename, "feature_" + hypothesis_basename + ".txt")))
 			else:
-				subprocess.call(preprocess_cmd.split(" "), stderr=subprocess.STDOUT, cwd=preprocess_cwd)
+				subprocess.call(preprocess_cmd.split("*"), stderr=subprocess.STDOUT, cwd=preprocess_cwd)
 				if preprocess_cwd != ".":
 					if os.path.exists(output_basename):
 						shutil.copytree(os.path.join(preprocess_cwd, output_basename), output_basename, dirs_exist_ok=True)
@@ -817,17 +817,17 @@ def run_esl(features_filename_list, groups_filename_list, response_filename_list
 		else:
 			basename = str(os.path.splitext(os.path.basename(response_filename))[0]).replace("response_", "") + "_{}_{}".format(z_ind, y_ind)
 		if slep_opts_filename is None:
-			esl_cmd = "{} -f {} -z {} -y {} -n {} -r {} -w {}".format(esl_exe, features_filename, sparsity, group_sparsity, groups_filename, response_filename, basename + "_out_feature_weights")
+			esl_cmd = "{}*-f*{}*-z*{}*-y*{}*-n*{}*-r*{}*-w*{}".format(esl_exe, features_filename, sparsity, group_sparsity, groups_filename, response_filename, basename + "_out_feature_weights")
 		else:
-			esl_cmd = "{} -f {} -z {} -y {} -n {} -r {} -s {} -w {}".format(esl_exe, features_filename, sparsity, group_sparsity, groups_filename, response_filename, slep_opts_filename, basename + "_out_feature_weights")
+			esl_cmd = "{}*-f*{}*-z*{}*-y*{}*-n*{}*-r*{}*-s*{}*-w*{}".format(esl_exe, features_filename, sparsity, group_sparsity, groups_filename, response_filename, slep_opts_filename, basename + "_out_feature_weights")
 		if method in ["overlapping_sg_lasso_leastr", "overlapping_sg_lasso_logisticr"]:
-			esl_cmd = esl_cmd + " -g {}".format(field_filename)
+			esl_cmd = esl_cmd + "*-g*{}".format(field_filename)
 		if args.xval > 1:
-			esl_cmd = esl_cmd + " -x {}".format(response_filename.replace("response_", "").replace("hypothesis.txt", "xval_groups.txt"))
-		esl_cmd = esl_cmd + " --model_format flat"
-		print(esl_cmd)
+			esl_cmd = esl_cmd + "*-x*{}".format(response_filename.replace("response_", "").replace("hypothesis.txt", "xval_groups.txt"))
+		esl_cmd = esl_cmd + "*--model_format*flat"
+		print(esl_cmd.replace("*"," "))
 #		subprocess.call("touch {}".format(basename + "_out_feature_weights.xml"), stderr=subprocess.STDOUT, shell=True)
-		subprocess.call(esl_cmd.split(" "), stderr=subprocess.STDOUT)
+		subprocess.call(esl_cmd.split("*"), stderr=subprocess.STDOUT)
 		weights_file_list.append(basename + "_out_feature_weights.txt")
 	return weights_file_list
 
@@ -857,16 +857,16 @@ def run_esl_grid(features_filename_list, groups_filename_list, response_filename
 		else:
 			basename = str(os.path.splitext(os.path.basename(response_filename))[0]).replace("response_", "") + "_{}_{}".format(z_ind, y_ind)
 		if slep_opts_filename is None:
-			esl_cmd = "{} -f {} -z {} -y {} -n {} -r {} -w {}".format(esl_exe, features_filename, sparsity, group_sparsity, groups_filename, response_filename, basename + "_out_feature_weights")
+			esl_cmd = "{}*-f*{}*-z*{}*-y*{}*-n*{}*-r*{}*-w*{}".format(esl_exe, features_filename, sparsity, group_sparsity, groups_filename, response_filename, basename + "_out_feature_weights")
 		else:
-			esl_cmd = "{} -f {} -z {} -y {} -n {} -r {} -s {} -w {}".format(esl_exe, features_filename, sparsity, group_sparsity, groups_filename, response_filename, slep_opts_filename, basename + "_out_feature_weights")
+			esl_cmd = "{}*-f*{}*-z*{}*-y*{}*-n*{}*-r*{}*-s*{}*-w*{}".format(esl_exe, features_filename, sparsity, group_sparsity, groups_filename, response_filename, slep_opts_filename, basename + "_out_feature_weights")
 		if method in ["overlapping_sg_lasso_leastr", "overlapping_sg_lasso_logisticr"]:
-			esl_cmd = esl_cmd + " -g {}".format(field_filename)
-		esl_cmd = esl_cmd + " -l {}".format(lambda_list_filename)
+			esl_cmd = esl_cmd + "*-g*{}".format(field_filename)
+		esl_cmd = esl_cmd + "*-l*{}".format(lambda_list_filename)
 		if args.grid_gene_threshold:
-			esl_cmd = esl_cmd + " -c {}".format(args.grid_gene_threshold)
-		esl_cmd = esl_cmd + " --model_format flat"
-		print(esl_cmd)
+			esl_cmd = esl_cmd + "*-c*{}".format(args.grid_gene_threshold)
+		esl_cmd = esl_cmd + "*--model_format*flat"
+		print(esl_cmd.replace("*"," "))
 		#subprocess.call("touch {}".format(basename + "_out_feature_weights.xml"), stderr=subprocess.STDOUT, shell=True)
 		if args.skip_processing:
 			for model_file in ["{}_out_feature_weights_{}_{}.txt".format(basename, lambda_val2label(val[0]), lambda_val2label(val[1])) for val in lambda_list]:
@@ -874,7 +874,7 @@ def run_esl_grid(features_filename_list, groups_filename_list, response_filename
 					raise Exception("Processing skipped, but no model file detected at {}.".format(model_file))
 			print("All expected model files detected, skipping processing step...")
 		else:
-			subprocess.call(esl_cmd.split(" "), stderr=subprocess.STDOUT)
+			subprocess.call(esl_cmd.split("*"), stderr=subprocess.STDOUT)
 		weights_file_list.append(["{}_out_feature_weights_{}_{}.txt".format(basename, lambda_val2label(val[0]), lambda_val2label(val[1])) for val in lambda_list])
 	return weights_file_list
 
