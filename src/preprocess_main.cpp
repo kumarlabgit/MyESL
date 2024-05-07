@@ -2,13 +2,14 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <stdio.h>
-#include <execinfo.h>
-#include <signal.h>
+//#include <execinfo.h>
+//#include <signal.h>
 #include <stdlib.h>
 #include <unistd.h>
 
 using namespace std;
 
+/*
 void handler(int sig) {
 	void *array[10];
 	size_t size;
@@ -21,6 +22,7 @@ void handler(int sig) {
 	backtrace_symbols_fd(array, size, STDERR_FILENO);
 	exit(1);
 }
+*/
 
 bool pathExists(const std::string &s)
 {
@@ -30,7 +32,7 @@ bool pathExists(const std::string &s)
 
 int main(int argc, char *argv[])
 {
-	signal(SIGSEGV, handler);
+//	signal(SIGSEGV, handler);
 	cout << "You have entered " << argc - 1 << " arguments:" << "\n";
 
 	if (argc < 4)

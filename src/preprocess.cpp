@@ -1,5 +1,6 @@
 #include "preprocess.hpp"
 #include <algorithm>
+#include <filesystem>
 #include <sstream>
 #include <random>
 
@@ -223,9 +224,11 @@ void alnData::processFastaFileList(string alnFileList)
 				{
 					this->geneGroupIndex[fastaFileName] = this->geneGroupIndex.size();
 					this->readAln(fastaFileName);
-					fastaFileName.erase(fastaFileName.find(".fa"), string::npos);
-					fastaFileName.erase(0, fastaFileName.find("/")+1);
-					this->currentGene = fastaFileName;
+					//fastaFileName.erase(fastaFileName.find(".fa"), string::npos);
+					//fastaFileName.erase(0, fastaFileName.find("/")+1);
+					std::filesystem::path fastaFilePath(fastaFileName);
+					//this->currentGene = fastaFileName;
+					this->currentGene = fastaFilePath.stem().string();
 					this->processAln();
 					this->seqs.clear();
 				}

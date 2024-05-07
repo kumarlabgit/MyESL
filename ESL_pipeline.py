@@ -50,7 +50,7 @@ def grid_search(args, original_output, input_files):
 			lambda_list.append((str(lambda_pair1[0]).replace("0.", ""), str(lambda_pair1[1]).replace("0.", "")))
 	for hypothesis_filename in hypothesis_file_list:
 		for lambda_pair1 in lambda_list:
-			if hypothesis_filename.replace(".txt","_out_feature_weights_{}_{}.xml".format(lambda_pair1[0], lambda_pair1[1])) in missing_results:
+			if hypothesis_filename.replace(".txt","_out_feature_weights_{}_{}".format(lambda_pair1[0], lambda_pair1[1])) in [os.path.splitext(missing_results_fname)[0] for missing_results_fname in missing_results]:
 				missing_predictions.append(hypothesis_filename.replace("hypothesis.txt", "gene_predictions_{}_{}.txt".format(lambda_pair1[0], lambda_pair1[1])))
 				continue
 			# shutil.move(hypothesis_filename, args.output)
@@ -81,7 +81,9 @@ def grid_search(args, original_output, input_files):
 				shutil.move(hypothesis_filename.replace("hypothesis.txt", "sweights.txt"), args.output)
 			if not args.grid_summary_only:
 				for lambda_pair1 in lambda_list:
-					gcv_files.append(gcv.main(os.path.join(args.output,hypothesis_filename.replace("hypothesis.txt", "gene_predictions_{}_{}.txt".format(lambda_pair1[0], lambda_pair1[1]))),gene_limit=args.gene_display_limit, ssq_threshold=args.gene_display_cutoff, m_grid=args.m_grid))
+					predictions_fname = hypothesis_filename.replace("hypothesis.txt", "gene_predictions_{}_{}.txt".format(lambda_pair1[0], lambda_pair1[1]))
+					if predictions_fname not in missing_predictions:
+						gcv_files.append(gcv.main(os.path.join(args.output,predictions_fname),gene_limit=args.gene_display_limit, ssq_threshold=args.gene_display_cutoff, m_grid=args.m_grid))
 	for file in gcv_files:
 		if os.path.dirname(file)!=os.path.normpath(args.output):
 			shutil.move(file, args.output)
@@ -351,17 +353,21 @@ if __name__ == '__main__':
 			# Write aggregated gene_predictions file
 			with open(os.path.join(args_original.output, "{}_GCS_median.txt".format(hypothesis)), 'w') as file:
 				gene_list = []
+				species_list = set()
 				for gene_prediction in gene_predictions:
+					species_list.update(gene_prediction.index)
 					for column in gene_prediction.columns:
 						if column not in gene_list:
 							gene_list.append(column)
 				file.write("SeqID\tResponse\tPrediction_mean\t{}\n".format("\t".join([gene for gene in gene_list if gene not in ["SeqID", "Prediction", "Intercept", "Response"]])))
-				for species in gene_predictions[0].index:
+				species_list = list(species_list)
+				#for species in gene_predictions[0].index:
+				for species in species_list:
 					file.write("{}\t".format(species))
 					for gene in gene_list:
 						if gene in ["SeqID", "Intercept"]:
 							continue
-						GCS_list = [x[gene][species] for x in gene_predictions if gene in x.columns.values.tolist() and x[gene][species] != 0]
+						GCS_list = [x[gene][species] for x in gene_predictions if gene in x.columns.values.tolist() and species in x[gene].keys() and x[gene][species] != 0]
 						if len(GCS_list) == 0:
 							GCS_list = [0]
 						# if gene == "Response":

@@ -182,10 +182,13 @@ def main(predictions_table, lead_cols=4, response_idx=2, prediction_idx=3, outpu
 		output = os.path.join(os.path.dirname(predictions_table),"{}.png".format(os.path.splitext(os.path.basename(predictions_table))[0]))
 	plt.savefig(output, dpi=DPI, bbox_inches='tight')
 	plt.close()
-	roc = get_roc(data[:,0], data[:,1])
-	roc_output = os.path.join(os.path.dirname(predictions_table),"{}_ROC.png".format(os.path.splitext(os.path.basename(predictions_table))[0]))
-	plt.plot(roc[1], roc[0])
-	plt.savefig(roc_output, dpi=DPI, bbox_inches='tight')
+	try:
+		roc = get_roc(data[:,0], data[:,1])
+		roc_output = os.path.join(os.path.dirname(predictions_table),"{}_ROC.png".format(os.path.splitext(os.path.basename(predictions_table))[0]))
+		plt.plot(roc[1], roc[0])
+		plt.savefig(roc_output, dpi=DPI, bbox_inches='tight')
+	except:
+		print("Couldn't generate ROC output for {}.".format(predictions_table))
 	return output
 
 

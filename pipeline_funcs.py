@@ -138,9 +138,13 @@ def read_fasta(filename):
 def parse_response_file(response_filename, species_list):
 	responses = {seq_id: None for seq_id in species_list}
 	seq_order = []
+	missing_seqids = []
 	with open(response_filename, 'r') as file:
 		custom_responses = [tuple(line.strip().split("\t")) for line in file]
 		for custom_response in custom_responses:
+			if custom_response[0] not in responses.keys():
+				responses[custom_response[0]] = None
+				missing_seqids = missing_seqids + [custom_response[0]]
 			if responses[custom_response[0]] is None:
 				responses[custom_response[0]] = custom_response[1]
 				seq_order.append(custom_response[0])
@@ -151,7 +155,7 @@ def parse_response_file(response_filename, species_list):
 	# 		responses[seq_id] = "0"
 	sorted_responses = {seq_id: responses[seq_id] for seq_id in seq_order}
 	sorted_responses.update({seq_id: responses[seq_id] for seq_id in responses.keys() if seq_id not in seq_order})
-	return sorted_responses
+	return sorted_responses, missing_seqids
 
 
 def extract_gene_sums(aln_list, aln_lib, model):
@@ -217,14 +221,17 @@ def apply_ESL_model(aln_list, aln_lib, model_file, hypothesis_file, groups_filen
 	species_list = set()
 	for gene in gene_sums.keys():
 		species_list.update(list(gene_sums[gene].keys()))
-	response = parse_response_file(hypothesis_file, species_list)
+	response, missing_seqids = parse_response_file(hypothesis_file, species_list)
+	for gene in gene_sums.keys():
+		for missing_seqid in missing_seqids:
+			gene_sums[gene][missing_seqid] = 0.0
 	weighted_group_sums = apply_group_weights(aln_list, gene_sums, groups_filename, species_list)
 	group_list = list(weighted_group_sums.keys())
 	with open(output_filename, 'w') as file:
 		# file.write("SeqID\tResponse\tPrediction\tIntercept\t{}\n".format("\t".join([",".join(x) for x in gene_list])))
 		# file.write("SeqID\tResponse\tPrediction\tIntercept\t{}\n".format("\t".join(gene_list)))
 		file.write("SeqID\tResponse\tPrediction\tIntercept\t{}\n".format("\t".join(group_list)))
-		for seq_id in species_list:
+		for seq_id in list(species_list) + missing_seqids:
 			if response[seq_id] is None:
 				continue
 			prediction = model["Intercept"]
