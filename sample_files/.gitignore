@@ -7,7 +7,7 @@
 !angiosperm_100_sample_alns.txt
 !angiosperm_100_sample_alns_overlapping.txt
 !angiosperm_20spec_pred.txt
-!ESL_test.nwk
-!ESL_test_nodelist.txt
+!MyESL_test.nwk
+!MyESL_test_nodelist.txt
 !test_pred.txt
 !.gitignore

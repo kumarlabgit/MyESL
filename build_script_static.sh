@@ -9,4 +9,3 @@ g++-8 -std=c++17 overlapping_sg_lasso_logisticr_main.cpp overlapping_sg_lasso_lo
 mv preprocess sg_lasso sg_lasso_leastr overlapping_sg_lasso_leastr overlapping_sg_lasso_logisticr ../bin
 cd ..
 tar -czvf bin.tar.gz bin/
-#cp bin.tar.gz ../ESL_master

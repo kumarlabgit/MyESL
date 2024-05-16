@@ -373,39 +373,40 @@ def generate_hypothesis_set(args):
 		slep_sample_balance = True
 	else:
 		slep_sample_balance = False
-	tree = Phylo.parse(newick_filename, 'newick').__next__()
-	taxa_list = [x.name for x in tree.get_terminals()]
-	if cladesize_cutoff_upper is None:
-		cladesize_cutoff_upper = len(taxa_list)
-	taxa_list.reverse()
-	auto_names = []
-	if auto_name_nodes:
-		i = 0
-		for clade in tree.find_clades():
-			if not clade.name:
-				new_name = "{}_{}_{}".format(clade[0].get_terminals()[0].name[0:auto_name_length], clade[1].get_terminals()[0].name[0:auto_name_length], i)
-				if new_name in auto_names:
-					raise ValueError("Duplicate auto generated name: {}\nIncrease size of auto_name_length parameter and try again.".format(new_name))
-				else:
-					clade.name = new_name
-					auto_names += [new_name]
-					i += 1
-		Phylo.write(tree, "auto_named_{}".format(os.path.basename(newick_filename)), "newick")
-	nodes = lookup_by_names(tree)
-	# print(tree)
-	if nodelist_filename is None:
-		nodelist = [key for key in nodes if key not in taxa_list]
-	else:
-		with open(nodelist_filename, 'r') as file:
-			nodelist = [line.strip() for line in file]
-	# print(nodelist)
-	nodelist = [x for x in nodelist if
-				len(nodes[x].get_terminals()) >= cladesize_cutoff_lower and len(nodes[x].get_terminals()) <= cladesize_cutoff_upper and len(
-					nodes[x].get_terminals()) < len(taxa_list)]
-	# print(nodelist)
-	# print(tree)
+
 	responses = {}
 	if response_filename is None:
+		tree = Phylo.parse(newick_filename, 'newick').__next__()
+		taxa_list = [x.name for x in tree.get_terminals()]
+		if cladesize_cutoff_upper is None:
+			cladesize_cutoff_upper = len(taxa_list)
+		taxa_list.reverse()
+		auto_names = []
+		if auto_name_nodes:
+			i = 0
+			for clade in tree.find_clades():
+				if not clade.name:
+					new_name = "{}_{}_{}".format(clade[0].get_terminals()[0].name[0:auto_name_length], clade[1].get_terminals()[0].name[0:auto_name_length], i)
+					if new_name in auto_names:
+						raise ValueError("Duplicate auto generated name: {}\nIncrease size of auto_name_length parameter and try again.".format(new_name))
+					else:
+						clade.name = new_name
+						auto_names += [new_name]
+						i += 1
+			Phylo.write(tree, "auto_named_{}".format(os.path.basename(newick_filename)), "newick")
+		nodes = lookup_by_names(tree)
+		# print(tree)
+		if nodelist_filename is None:
+			nodelist = [key for key in nodes if key not in taxa_list]
+		else:
+			with open(nodelist_filename, 'r') as file:
+				nodelist = [line.strip() for line in file]
+		# print(nodelist)
+		nodelist = [x for x in nodelist if
+					len(nodes[x].get_terminals()) >= cladesize_cutoff_lower and len(nodes[x].get_terminals()) <= cladesize_cutoff_upper and len(
+						nodes[x].get_terminals()) < len(taxa_list)]
+		# print(nodelist)
+		# print(tree)
 		distance_matrix = {t1: {t2: tree.distance(t1, t2) for t2 in taxa_list} for t1 in taxa_list}
 		for nodename in nodelist:
 			if smart_sampling is None:
@@ -553,17 +554,14 @@ def generate_hypothesis_set(args):
 	else:
 		with open(response_filename, 'r') as file:
 			basename = os.path.splitext(os.path.basename(response_filename))[0]
-			responses[basename] = {x: None for x in taxa_list}
+			responses[basename] = {}
+			taxa_list = []
 			custom_responses = [tuple(line.strip().split("\t")) for line in file]
 			for response in custom_responses:
-				for terminal in nodes[response[0]].get_terminals():
-					if responses[basename][terminal.name] is None:
-						responses[basename][terminal.name] = response[1]
-					else:
-						raise Exception("Response value of sequence {} specified more than once".format(terminal.name))
-			for key in responses[basename].keys():
-				if responses[basename][key] is None:
-					responses[basename][key] = "0"
+				if response[0] in taxa_list:
+					raise Exception("Response value of sequence {} specified more than once".format(response[0]))
+				taxa_list = taxa_list + [response[0]]
+				responses[basename][response[0]] = response[1]
 	hypothesis_file_list = []
 	slep_opts_file_list = []
 	for nodename in responses.keys():

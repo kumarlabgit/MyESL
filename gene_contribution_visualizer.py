@@ -81,7 +81,7 @@ def merge_predictions(file_list, output_filename=None):
 	return output_filename
 
 
-def main(predictions_table, lead_cols=4, response_idx=2, prediction_idx=3, output=None, ssq_threshold=0, gene_limit=100, m_grid=False):
+def main(predictions_table, lead_cols=4, response_idx=2, prediction_idx=3, output=None, ssq_threshold=0, gene_limit=100, m_grid=False, species_limit=100):
 	sample_size = 24
 	sample_size = None
 	with open(predictions_table, 'r') as file:
@@ -126,7 +126,12 @@ def main(predictions_table, lead_cols=4, response_idx=2, prediction_idx=3, outpu
 	sorted_rows = list(zip(range(0, num_rows), pr, data[:, 0]))
 	sorted_rows.sort(key=lambda tup: (tup[2], tup[1]), reverse=True)
 	data = data[[val[0] for val in sorted_rows]]
+	with open(predictions_table.replace("gene_predictions", "SPS_SPP").replace("GCS_median", "SPS_SPP_median"), 'w') as sps_file:
+		sps_file.write("seq_id\tresponse\tSPS\tSPP\n")
+		for row in zip([seqid_list[sorted_row[0]] for sorted_row in sorted_rows], data[:,0], data[:,1], [sorted_row[1] for sorted_row in sorted_rows]):
+			sps_file.write("{}\n".format('\t'.join([str(val) for val in row])))
 	seqid_list = ["{} ({:0.2f})".format((val)[0], val[1]) for val in zip(seqid_list, pr)]
+
 
 	# temp1 = list(range(lead_cols-1, len(data[0])))
 	# print(temp1)
@@ -136,7 +141,8 @@ def main(predictions_table, lead_cols=4, response_idx=2, prediction_idx=3, outpu
 
 	if m_grid:
 		data = data[0:sum([1 for val in data[:, 0] if float(val)>0.99]), list(range(lead_cols-1, len(data[0])))]
-
+	if len(data) > species_limit:
+		data = data[0:species_limit]
 	seqid_list = [seqid_list[val[0]] for val in sorted_rows[0:len(data)]]
 
 	# Reset dimensions if truncation has occurred.
@@ -182,13 +188,13 @@ def main(predictions_table, lead_cols=4, response_idx=2, prediction_idx=3, outpu
 		output = os.path.join(os.path.dirname(predictions_table),"{}.png".format(os.path.splitext(os.path.basename(predictions_table))[0]))
 	plt.savefig(output, dpi=DPI, bbox_inches='tight')
 	plt.close()
-	try:
-		roc = get_roc(data[:,0], data[:,1])
-		roc_output = os.path.join(os.path.dirname(predictions_table),"{}_ROC.png".format(os.path.splitext(os.path.basename(predictions_table))[0]))
-		plt.plot(roc[1], roc[0])
-		plt.savefig(roc_output, dpi=DPI, bbox_inches='tight')
-	except:
-		print("Couldn't generate ROC output for {}.".format(predictions_table))
+	# try:
+	# 	roc = get_roc(data[:,0], data[:,1])
+	# 	roc_output = os.path.join(os.path.dirname(predictions_table),"{}_ROC.png".format(os.path.splitext(os.path.basename(predictions_table))[0]))
+	# 	plt.plot(roc[1], roc[0])
+	# 	plt.savefig(roc_output, dpi=DPI, bbox_inches='tight')
+	# except:
+	# 	print("Couldn't generate ROC output for {}.".format(predictions_table))
 	return output
 
 
