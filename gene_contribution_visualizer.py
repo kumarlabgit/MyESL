@@ -96,7 +96,8 @@ def main(predictions_table, lead_cols=4, response_idx=2, prediction_idx=3, outpu
 		seqid_list = [(val)[0] for val in data]
 		data = np.asarray([list(val)[1:] for val in data], dtype="float")
 	num_rows, num_cols = data.shape
-	print("\nRows: {}\nCols: {}\n".format(num_rows, num_cols))
+	#print("\nRows: {}\nCols: {}\n".format(num_rows, num_cols))
+	print("Processing {}...".format(predictions_table))
 
 
 	# Sort columns by sum of contributions

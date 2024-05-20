@@ -481,13 +481,13 @@ def generate_hypothesis_set(args):
 						#print(negative_set)
 						#print(temp_distance.keys())
 						minimum_distance = min([min([temp_distance[t1][t2] for t1 in negative_set if t1 != t2]) for t2 in negative_set])
+						min_length = min([nodes[negative_taxa].branch_length for negative_taxa in negative_set])
 						min_taxa = set()
-						[[min_taxa.add(t1) for t1 in negative_set if temp_distance[t1][t2] == minimum_distance] for t2 in negative_set]
+						#[[min_taxa.add(t1) for t1 in negative_set if temp_distance[t1][t2] == minimum_distance] for t2 in negative_set]
+						[min_taxa.add(t1) for t1 in negative_set if nodes[t1].branch_length == min_length]
 						min_taxa = list(min_taxa)
-						#print(min_taxa)
 						random.shuffle(min_taxa)
 						#randomly delete half of pair
-						#print(min_taxa[0])
 						responses[nodename][min_taxa[0]] = 0
 						negative_set.remove(min_taxa[0])
 				response_sum = sum(responses[nodename].values())

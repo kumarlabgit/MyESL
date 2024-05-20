@@ -83,7 +83,10 @@ def grid_search(args, original_output, input_files):
 				for lambda_pair1 in lambda_list:
 					predictions_fname = hypothesis_filename.replace("hypothesis.txt", "gene_predictions_{}_{}.txt".format(lambda_pair1[0], lambda_pair1[1]))
 					if predictions_fname not in missing_predictions:
-						gcv_files.append(gcv.main(os.path.join(args.output,predictions_fname), species_limit=args.species_display_limit, gene_limit=args.gene_display_limit, ssq_threshold=args.gene_display_cutoff, m_grid=args.m_grid))
+						try:
+							gcv_files.append(gcv.main(os.path.join(args.output,predictions_fname), species_limit=args.species_display_limit, gene_limit=args.gene_display_limit, ssq_threshold=args.gene_display_cutoff, m_grid=args.m_grid))
+						except:
+							print("Could not produce graphic for lambda {} with hypothesis {}.".format(lambda_pair1, hypothesis_filename.replace("_hypothesis.txt", "")))
 	for file in gcv_files:
 		if os.path.dirname(file)!=os.path.normpath(args.output):
 			shutil.move(file, args.output)
@@ -91,114 +94,256 @@ def grid_search(args, original_output, input_files):
 
 
 def main(args):
-	hypothesis_file_list, slep_opts_file_list = pf.generate_hypothesis_set(args)
-	HSS = {}
-	missing_seqs = set()
-	merged_rep_predictions_files = {hypothesis_filename:[] for hypothesis_filename in hypothesis_file_list}
-	gcv_files = []
-	if args.ensemble_parts is not None and args.ensemble_parts >= 1:
-		tempdir_list = []
-		merged_parts_prediction_files = {hypothesis_filename:[] for hypothesis_filename in hypothesis_file_list}
-		for i in range(0, args.ensemble_coverage):
-			partitioned_aln_lists = pf.split_gene_list(args.aln_list, args.ensemble_parts)
-			j = 0
-			gene_prediction_files = {hypothesis_filename:[] for hypothesis_filename in hypothesis_file_list}
-			for part_aln_list in partitioned_aln_lists:
-				tempdir = "{}_rep{}_part{}".format(args.output, i+1, j+1)
-				tempdir_list.append(tempdir)
-				features_filename_list, groups_filename_list, response_filename_list, gene_list, field_filename_list, group_list = pf.generate_input_matrices(part_aln_list, hypothesis_file_list, args)
-				with open(os.path.join(args.output, "missing_seqs_" + args.output + ".txt"), "r") as file:
-					for line in file:
-						data = line.strip().split("\t")
-						missing_seqs.add((data[1], os.path.splitext(os.path.basename(data[0]))[0]))
-				weights_file_list = pf.run_esl(features_filename_list, groups_filename_list, response_filename_list, field_filename_list, args, slep_opts_file_list)
-				pf.process_weights(weights_file_list, hypothesis_file_list, groups_filename_list, features_filename_list, gene_list, HSS, missing_seqs, group_list)
-				for hypothesis_filename in hypothesis_file_list:
-					if i+1 == args.ensemble_coverage and j+1 == args.ensemble_parts and not args.sparsify:
-						shutil.move(hypothesis_filename, args.output)
-					else:
-						shutil.copy(hypothesis_filename, args.output)
-					shutil.move(hypothesis_filename.replace(".txt","_out_feature_weights.xml"), args.output)
-					shutil.move(hypothesis_filename.replace("hypothesis.txt","gene_predictions.txt"), args.output)
-					gene_prediction_files[hypothesis_filename].append(os.path.join(tempdir, hypothesis_filename.replace("hypothesis.txt","gene_predictions.txt")))
-					shutil.move(hypothesis_filename.replace("hypothesis.txt", "mapped_feature_weights.txt"), args.output)
-					shutil.move(hypothesis_filename.replace("hypothesis.txt", "PSS.txt"), args.output)
-					shutil.move(hypothesis_filename.replace("hypothesis.txt", "GSS.txt"), args.output)
-					shutil.move(hypothesis_filename.replace("hypothesis.txt", "xval_groups.txt"), args.output)
-				shutil.move(args.output, tempdir)
-				j += 1
+	all_files = {"HSS": "HSS.txt"}
+	try:
+		hypothesis_file_list, slep_opts_file_list = pf.generate_hypothesis_set(args)
+		all_files["hypothesis"] = [os.path.basename(file) for file in hypothesis_file_list]
+		all_files["slep_opts"] = [os.path.basename(file) for file in slep_opts_file_list]
+		all_files["sweights"] = [fname.replace("slep_opts", "sweights") for fname in all_files["slep_opts"]]
+		all_files["xval"] = [fname.replace("slep_opts", "xval_groups") for fname in all_files["slep_opts"]]
+		HSS = {}
+		missing_seqs = set()
+		merged_rep_predictions_files = {hypothesis_filename:[] for hypothesis_filename in hypothesis_file_list}
+		gcv_files = []
+		if args.ensemble_parts is not None and args.ensemble_parts >= 1:
+			tempdir_list = []
+			merged_parts_prediction_files = {hypothesis_filename:[] for hypothesis_filename in hypothesis_file_list}
+			for i in range(0, args.ensemble_coverage):
+				partitioned_aln_lists = pf.split_gene_list(args.aln_list, args.ensemble_parts)
+				j = 0
+				gene_prediction_files = {hypothesis_filename:[] for hypothesis_filename in hypothesis_file_list}
+				for part_aln_list in partitioned_aln_lists:
+					tempdir = "{}_rep{}_part{}".format(args.output, i+1, j+1)
+					tempdir_list.append(tempdir)
+					features_filename_list, groups_filename_list, response_filename_list, gene_list, field_filename_list, group_list = pf.generate_input_matrices(part_aln_list, hypothesis_file_list, args)
+					with open(os.path.join(args.output, "missing_seqs_" + args.output + ".txt"), "r") as file:
+						for line in file:
+							data = line.strip().split("\t")
+							missing_seqs.add((data[1], os.path.splitext(os.path.basename(data[0]))[0]))
+					weights_file_list = pf.run_esl(features_filename_list, groups_filename_list, response_filename_list, field_filename_list, args, slep_opts_file_list)
+					pf.process_weights(weights_file_list, hypothesis_file_list, groups_filename_list, features_filename_list, gene_list, HSS, missing_seqs, group_list)
+					for hypothesis_filename in hypothesis_file_list:
+						if i+1 == args.ensemble_coverage and j+1 == args.ensemble_parts and not args.sparsify:
+							shutil.move(hypothesis_filename, args.output)
+						else:
+							shutil.copy(hypothesis_filename, args.output)
+						shutil.move(hypothesis_filename.replace(".txt","_out_feature_weights.xml"), args.output)
+						shutil.move(hypothesis_filename.replace("hypothesis.txt","gene_predictions.txt"), args.output)
+						gene_prediction_files[hypothesis_filename].append(os.path.join(tempdir, hypothesis_filename.replace("hypothesis.txt","gene_predictions.txt")))
+						shutil.move(hypothesis_filename.replace("hypothesis.txt", "mapped_feature_weights.txt"), args.output)
+						shutil.move(hypothesis_filename.replace("hypothesis.txt", "PSS.txt"), args.output)
+						shutil.move(hypothesis_filename.replace("hypothesis.txt", "GSS.txt"), args.output)
+						shutil.move(hypothesis_filename.replace("hypothesis.txt", "xval_groups.txt"), args.output)
+					shutil.move(args.output, tempdir)
+					j += 1
+				if not args.sparsify:
+					for hypothesis_filename in hypothesis_file_list:
+						merged_parts_prediction_files[hypothesis_filename].append(gcv.merge_predictions(gene_prediction_files[hypothesis_filename],hypothesis_filename.replace("hypothesis.txt","merged_gene_predictions_rep{}.txt".format(i))))
 			if not args.sparsify:
 				for hypothesis_filename in hypothesis_file_list:
-					merged_parts_prediction_files[hypothesis_filename].append(gcv.merge_predictions(gene_prediction_files[hypothesis_filename],hypothesis_filename.replace("hypothesis.txt","merged_gene_predictions_rep{}.txt".format(i))))
-		if not args.sparsify:
+					merged_rep_predictions_files[hypothesis_filename] = gcv.merge_predictions(merged_parts_prediction_files[hypothesis_filename],hypothesis_filename.replace("hypothesis.txt","merged_gene_predictions_final.txt"))
+					gcv_files.extend(merged_parts_prediction_files[hypothesis_filename])
+					gcv_files.append(merged_rep_predictions_files[hypothesis_filename])
+					gcv_files.append(gcv.main(merged_rep_predictions_files[hypothesis_filename], species_limit=args.species_display_limit, gene_limit=args.gene_display_limit, ssq_threshold=args.gene_display_cutoff, m_grid=args.m_grid))
+			os.mkdir(args.output)
+			for tempdir in tempdir_list:
+				shutil.move(tempdir, args.output)
+			for file in gcv_files:
+				shutil.move(file, args.output)
+			if args.auto_name_nodes:
+				shutil.move("auto_named_{}".format(os.path.basename(args.tree)), args.output)
+			with open(os.path.join(args.output, "HSS.txt"), 'w') as file:
+				file.write("{}\t{}\n".format("Hypothesis", "HSS"))
+				for hypothesis_filename in hypothesis_file_list:
+					file.write("{}\t{}\n".format(hypothesis_filename.replace("_hypothesis.txt", ""), HSS[hypothesis_filename]))
+					if args.slep_sample_balance:
+						shutil.move(hypothesis_filename.replace("hypothesis.txt", "slep_opts.txt"), args.output)
+						shutil.move(hypothesis_filename.replace("hypothesis.txt", "sweights.txt"), args.output)
+			result_files_list = pf.find_result_files(args, hypothesis_file_list)
+			weights = pf.parse_result_files(args, result_files_list)
+			return pf.analyze_ensemble_weights(args, weights)
+		else:
+			features_filename_list, groups_filename_list, response_filename_list, gene_list, field_filename_list, group_list = pf.generate_input_matrices(args.aln_list, hypothesis_file_list, args)
+			for key in ["features_filename_list", "groups_filename_list", "response_filename_list", "gene_list", "field_filename_list", "group_list"]:
+				if "filename_list" in key:
+					all_files[key] = [os.path.basename(file) for file in eval(key)]
+			with open(os.path.join(args.output, "missing_seqs_" + args.output + ".txt"), "r") as file:
+				for line in file:
+					data = line.strip().split("\t")
+					missing_seqs.add((data[1], os.path.splitext(os.path.basename(data[0]))[0]))
+			hypothesis_list = list(set(["_".join(x.replace("_" + args.output, "").split("_")[0:-1]) for x in hypothesis_file_list]))
+			all_files["gene_predictions"] = []
+			all_files["feature_weights"] = []
+			all_files["GSS"] = []
+			all_files["PSS"] = []
+			all_files["SPS_SPP"] = []
+			all_files["GSS_median"] = []
+			all_files["PSS_median"] = []
+			all_files["SPS_SPP_median"] = []
+			all_files["GCS_median"] = []
+			all_files["slep_opts"] = []
+			all_files["sweights"] = []
+			all_files["xval"] = []
+			all_files["pos_stats"] = []
+			all_files["response"] = []
+			all_files["features"] = []
+			all_files["feature_mapping"] = []
+			all_files["field"] = []
+			all_files["groups"] = []
+			all_files["prediction_pngs"] = []
+			all_files["roc_pngs"] = []
+			all_files["missing_seqs"] = ["missing_seqs_{}.txt".format(args.output)]
+			all_files["lambda_list"] = ["{}_lambda_list.txt".format(args.output)]
+			for hypothesis in hypothesis_list:
+				all_files["GSS_median"] = all_files["GSS_median"] + ["{}_GSS_median.txt".format(hypothesis)]
+				all_files["PSS_median"] = all_files["PSS_median"] + ["{}_PSS_median.txt".format(hypothesis)]
+				all_files["SPS_SPP_median"] = all_files["SPS_SPP_median"] + ["{}_SPS_SPP_median.txt".format(hypothesis)]
+				all_files["GCS_median"] = all_files["GCS_median"] + ["{}_GCS_median.txt".format(hypothesis)]
+				all_files["slep_opts"] = all_files["slep_opts"] + ["{}_{}_slep_opts.txt".format(hypothesis, args.output)]
+				all_files["sweights"] = all_files["sweights"] + ["{}_{}_sweights.txt".format(hypothesis, args.output)]
+				all_files["xval"] = all_files["xval"] + ["{}_{}_xval_groups.txt".format(hypothesis, args.output)]
+				all_files["pos_stats"] = all_files["pos_stats"] + ["pos_stats_{}_{}_hypothesis.txt".format(hypothesis, args.output)]
+				all_files["response"] = all_files["response"] + ["response_{}_{}_hypothesis.txt".format(hypothesis, args.output)]
+				all_files["features"] = all_files["features"] + ["feature_{}_{}_hypothesis.txt".format(hypothesis, args.output)]
+				all_files["feature_mapping"] = all_files["feature_mapping"] + ["feature_mapping_{}_{}_hypothesis.txt".format(hypothesis, args.output)]
+				all_files["field"] = all_files["field"] + ["field_{}_{}_hypothesis.txt".format(hypothesis, args.output)]
+				all_files["groups"] = all_files["groups"] + ["group_indices_{}_{}_hypothesis.txt".format(hypothesis, args.output)]
+				all_files["feature_weights"] = all_files["feature_weights"] + ["{}_{}_hypothesis_out_feature_weights.txt".format(hypothesis, args.output)]
+				all_files["feature_weights"] = all_files["feature_weights"] + ["{}_{}_hypothesis_out_feature_weights.xml".format(hypothesis, args.output)]
+				all_files["gene_predictions"] = all_files["gene_predictions"] + ["{}_{}_gene_predictions.txt".format(hypothesis, args.output)]
+				all_files["gene_predictions"] = all_files["gene_predictions"] + ["{}_{}_gene_predictions_xval.txt".format(hypothesis, args.output)]
+				all_files["prediction_pngs"] = all_files["prediction_pngs"] + ["{}_{}_gene_predictions.png".format(hypothesis, args.output)]
+				all_files["prediction_pngs"] = all_files["prediction_pngs"] + ["{}_{}_gene_predictions_xval.png".format(hypothesis, args.output)]
+				all_files["roc_pngs"] = all_files["roc_pngs"] + ["{}_{}_gene_predictions_ROC.png".format(hypothesis, args.output)]
+				all_files["SPS_SPP"] = all_files["SPS_SPP"] + ["{}_{}_SPS_SPP.txt".format(hypothesis, args.output)]
+				all_files["SPS_SPP"] = all_files["SPS_SPP"] + ["{}_{}_SPS_SPP_xval.txt".format(hypothesis, args.output)]
+				all_files["GSS"] = all_files["GSS"] + ["{}_{}_GSS.txt".format(hypothesis, args.output)]
+				all_files["PSS"] = all_files["PSS"] + ["{}_{}_PSS.txt".format(hypothesis, args.output)]
+			weights_file_list = pf.run_esl(features_filename_list, groups_filename_list, response_filename_list, field_filename_list, args, slep_opts_file_list)
+			if args.xval > 1:
+				for hypothesis_filename in hypothesis_file_list:
+					shutil.copy(os.path.join(args.output, hypothesis_filename.replace("hypothesis.txt", "xval_groups.txt")), hypothesis_filename.replace("hypothesis.txt", "xval_groups.txt"))
+	#			pf.process_xval_weights(weights_file_list, hypothesis_file_list, groups_filename_list, features_filename_list, gene_list, args.xval, missing_seqs, group_list)
+				pf.process_sparse_xval_weights(weights_file_list, hypothesis_file_list, groups_filename_list, args.aln_list, gene_list, args.xval, missing_seqs, group_list)
+				for hypothesis_filename in hypothesis_file_list:
+					os.remove(hypothesis_filename.replace("hypothesis.txt", "xval_groups.txt"))
+			# pf.process_weights(weights_file_list, hypothesis_file_list, groups_filename_list, features_filename_list, gene_list, HSS, missing_seqs, group_list)
+			pf.process_sparse_weights(weights_file_list, hypothesis_file_list, groups_filename_list, HSS, missing_seqs, args)
 			for hypothesis_filename in hypothesis_file_list:
-				merged_rep_predictions_files[hypothesis_filename] = gcv.merge_predictions(merged_parts_prediction_files[hypothesis_filename],hypothesis_filename.replace("hypothesis.txt","merged_gene_predictions_final.txt"))
-				gcv_files.extend(merged_parts_prediction_files[hypothesis_filename])
-				gcv_files.append(merged_rep_predictions_files[hypothesis_filename])
-				gcv_files.append(gcv.main(merged_rep_predictions_files[hypothesis_filename], species_limit=args.species_display_limit, gene_limit=args.gene_display_limit, ssq_threshold=args.gene_display_cutoff, m_grid=args.m_grid))
-		os.mkdir(args.output)
-		for tempdir in tempdir_list:
-			shutil.move(tempdir, args.output)
-		for file in gcv_files:
-			shutil.move(file, args.output)
-		if args.auto_name_nodes:
-			shutil.move("auto_named_{}".format(os.path.basename(args.tree)), args.output)
-		with open(os.path.join(args.output, "HSS.txt"), 'w') as file:
-			file.write("{}\t{}\n".format("Hypothesis", "HSS"))
-			for hypothesis_filename in hypothesis_file_list:
-				file.write("{}\t{}\n".format(hypothesis_filename.replace("_hypothesis.txt", ""), HSS[hypothesis_filename]))
-				if args.slep_sample_balance:
-					shutil.move(hypothesis_filename.replace("hypothesis.txt", "slep_opts.txt"), args.output)
-					shutil.move(hypothesis_filename.replace("hypothesis.txt", "sweights.txt"), args.output)
-		result_files_list = pf.find_result_files(args, hypothesis_file_list)
-		weights = pf.parse_result_files(args, result_files_list)
-		return pf.analyze_ensemble_weights(args, weights)
-	else:
-		features_filename_list, groups_filename_list, response_filename_list, gene_list, field_filename_list, group_list = pf.generate_input_matrices(args.aln_list, hypothesis_file_list, args)
-		with open(os.path.join(args.output, "missing_seqs_" + args.output + ".txt"), "r") as file:
-			for line in file:
-				data = line.strip().split("\t")
-				missing_seqs.add((data[1], os.path.splitext(os.path.basename(data[0]))[0]))
-		weights_file_list = pf.run_esl(features_filename_list, groups_filename_list, response_filename_list, field_filename_list, args, slep_opts_file_list)
-		if args.xval > 1:
-			for hypothesis_filename in hypothesis_file_list:
-				shutil.copy(os.path.join(args.output, hypothesis_filename.replace("hypothesis.txt", "xval_groups.txt")), hypothesis_filename.replace("hypothesis.txt", "xval_groups.txt"))
-#			pf.process_xval_weights(weights_file_list, hypothesis_file_list, groups_filename_list, features_filename_list, gene_list, args.xval, missing_seqs, group_list)
-			pf.process_sparse_xval_weights(weights_file_list, hypothesis_file_list, groups_filename_list, args.aln_list, gene_list, args.xval, missing_seqs, group_list)
-			for hypothesis_filename in hypothesis_file_list:
-				os.remove(hypothesis_filename.replace("hypothesis.txt", "xval_groups.txt"))
-		# pf.process_weights(weights_file_list, hypothesis_file_list, groups_filename_list, features_filename_list, gene_list, HSS, missing_seqs, group_list)
-		pf.process_sparse_weights(weights_file_list, hypothesis_file_list, groups_filename_list, HSS, missing_seqs, args)
-		for hypothesis_filename in hypothesis_file_list:
-			shutil.move(hypothesis_filename, args.output)
+				shutil.move(hypothesis_filename, args.output)
+				try:
+					shutil.move(hypothesis_filename.replace(".txt","_out_feature_weights.xml"), args.output)
+				except:
+					pass
+				shutil.move(hypothesis_filename.replace("hypothesis.txt", "gene_predictions.txt"), args.output)
+				if args.xval > 1:
+					shutil.move(hypothesis_filename.replace("hypothesis.txt", "gene_predictions_xval.txt"), args.output)
+				# shutil.move(hypothesis_filename.replace("hypothesis.txt", "mapped_feature_weights.txt"), args.output)
+				# shutil.move(hypothesis_filename.replace("hypothesis.txt", "PSS.txt"), args.output)
+				shutil.move(hypothesis_filename.replace("hypothesis.txt", "GSS.txt"), args.output)
+				#shutil.move(hypothesis_filename.replace("hypothesis.txt", "xval_groups.txt"), args.output)
+			if args.auto_name_nodes:
+				shutil.move("auto_named_{}".format(os.path.basename(args.tree)), args.output)
+			with open(os.path.join(args.output, "HSS.txt"), 'w') as file:
+				file.write("{}\t{}\n".format("Hypothesis", "HSS"))
+				for hypothesis_filename in hypothesis_file_list:
+					file.write("{}\t{}\n".format(hypothesis_filename.replace("_hypothesis.txt", ""), HSS[hypothesis_filename]))
+					if args.slep_sample_balance or args.smart_sampling:
+						shutil.move(hypothesis_filename.replace("hypothesis.txt", "slep_opts.txt"), args.output)
+						shutil.move(hypothesis_filename.replace("hypothesis.txt", "sweights.txt"), args.output)
+					gcv_files.append(gcv.main(os.path.join(args.output,hypothesis_filename.replace("hypothesis.txt", "gene_predictions.txt")), species_limit=args.species_display_limit, gene_limit=args.gene_display_limit, ssq_threshold=args.gene_display_cutoff, m_grid=args.m_grid))
+					if args.xval > 1:
+						print("{}-Fold Cross Validation Accuracy:".format(args.xval))
+						gcv_files.append(gcv.main(os.path.join(args.output, hypothesis_filename.replace("hypothesis.txt", "gene_predictions_xval.txt")), species_limit=args.species_display_limit, gene_limit=args.gene_display_limit, ssq_threshold=args.gene_display_cutoff, m_grid=args.m_grid))
+			for file in gcv_files:
+				if os.path.dirname(file)!=os.path.normpath(args.output):
+					shutil.move(file, args.output)
+	except Exception as e:
+		raise Exception(e)
+	finally:
+		message_triggered = False
+		for key in all_files.keys():
+			for file in all_files[key]:
+				try:
+					shutil.move(file, os.path.join(args.output, file))
+					if not message_triggered:
+						print("Exception encountered, attempting to clean up files...")
+						message_triggered = True
+					print("Moved {} to {}.".format(file, args.output))
+				except:
+					pass
+		if single_lambda_pair:
+			for summary_type in [output_type for output_type in all_files.keys() if "median" in output_type]:
+				for fname in all_files[summary_type]:
+					try:
+						os.remove(os.path.join(args.output, fname))
+					except:
+						pass
+		for output_type in [mode for mode in ["B", "P", "G", "H"] if mode not in args.stats_out]:
+			for fname in all_files.get("{}SS".format(output_type), []):
+				try:
+					os.remove(os.path.join(args.output, fname))
+				except:
+					pass
+		for output_type in [mode for mode in ["B", "P", "G", "H"] if mode not in args.stats_out]:
+			for fname in all_files.get("{}SS_median".format(output_type), []):
+				try:
+					os.remove(os.path.join(args.output, fname))
+				except:
+					pass
+		if "S" not in args.stats_out:
+			for fname in list(all_files.get("SPS_SPP", [])) + list(all_files.get("SPS_SPP_median", [])):
+				try:
+					os.remove(os.path.join(args.output, fname))
+				except:
+					pass
+		for output_type in ["SPS_SPP", "PSS", "GSS", "hypothesis"]:
+			for fname in all_files.get(output_type, []):
+				new_fname = "{}_{}".format(output_type, fname.replace("_{}".format(output_type), "").replace("_{}".format(args.output), ""))
+				try:
+					shutil.move(os.path.join(args.output, fname), os.path.join(args.output, new_fname))
+				except:
+					pass
+		for output_type in ["SPS_SPP_median", "PSS_median", "GSS_median"]:
+			for fname in all_files.get(output_type, []):
+				new_fname = "{}_{}".format(output_type.replace("_median", ""), fname.replace(output_type, "summary"))
+				try:
+					shutil.move(os.path.join(args.output, fname), os.path.join(args.output, new_fname))
+				except:
+					pass
+		for fname in all_files.get("feature_weights", []):
+			new_fname = "MyESL_model_{}".format(fname.replace("_{}_hypothesis_out_feature_weights".format(args.output), ""))
 			try:
-				shutil.move(hypothesis_filename.replace(".txt","_out_feature_weights.xml"), args.output)
+				shutil.move(os.path.join(args.output, fname), os.path.join(args.output, new_fname))
 			except:
 				pass
-			shutil.move(hypothesis_filename.replace("hypothesis.txt", "gene_predictions.txt"), args.output)
-			if args.xval > 1:
-				shutil.move(hypothesis_filename.replace("hypothesis.txt", "gene_predictions_xval.txt"), args.output)
-			# shutil.move(hypothesis_filename.replace("hypothesis.txt", "mapped_feature_weights.txt"), args.output)
-			# shutil.move(hypothesis_filename.replace("hypothesis.txt", "PSS.txt"), args.output)
-			shutil.move(hypothesis_filename.replace("hypothesis.txt", "GSS.txt"), args.output)
-			#shutil.move(hypothesis_filename.replace("hypothesis.txt", "xval_groups.txt"), args.output)
-		if args.auto_name_nodes:
-			shutil.move("auto_named_{}".format(os.path.basename(args.tree)), args.output)
-		with open(os.path.join(args.output, "HSS.txt"), 'w') as file:
-			file.write("{}\t{}\n".format("Hypothesis", "HSS"))
-			for hypothesis_filename in hypothesis_file_list:
-				file.write("{}\t{}\n".format(hypothesis_filename.replace("_hypothesis.txt", ""), HSS[hypothesis_filename]))
-				if args.slep_sample_balance or args.smart_sampling:
-					shutil.move(hypothesis_filename.replace("hypothesis.txt", "slep_opts.txt"), args.output)
-					shutil.move(hypothesis_filename.replace("hypothesis.txt", "sweights.txt"), args.output)
-				gcv_files.append(gcv.main(os.path.join(args.output,hypothesis_filename.replace("hypothesis.txt", "gene_predictions.txt")), species_limit=args.species_display_limit, gene_limit=args.gene_display_limit, ssq_threshold=args.gene_display_cutoff, m_grid=args.m_grid))
-				if args.xval > 1:
-					print("{}-Fold Cross Validation Accuracy:".format(args.xval))
-					gcv_files.append(gcv.main(os.path.join(args.output, hypothesis_filename.replace("hypothesis.txt", "gene_predictions_xval.txt")), species_limit=args.species_display_limit, gene_limit=args.gene_display_limit, ssq_threshold=args.gene_display_cutoff, m_grid=args.m_grid))
-		for file in gcv_files:
-			if os.path.dirname(file)!=os.path.normpath(args.output):
-				shutil.move(file, args.output)
-		return hypothesis_file_list
+		for fname in all_files.get("gene_predictions", []):
+			new_fname = "GSC_{}".format(fname.replace("_{}_gene_predictions".format(args.output), ""))
+			try:
+				shutil.move(os.path.join(args.output, fname), os.path.join(args.output, new_fname))
+			except:
+				pass
+		for fname in all_files.get("prediction_pngs", []):
+			new_fname = "GSC_{}".format(fname.replace("_{}_gene_predictions".format(args.output), ""))
+			try:
+				shutil.move(os.path.join(args.output, fname), os.path.join(args.output, new_fname))
+			except:
+				pass
+		for fname in all_files.get("GCS_median", []):
+			new_fname = "M-Grid_{}".format(fname.replace("_GCS_median", ""))
+			try:
+				shutil.move(os.path.join(args.output, fname), os.path.join(args.output, new_fname))
+				shutil.move(os.path.join(args.output, fname.replace(".txt", ".png")), os.path.join(args.output, new_fname.replace(".txt", ".png")))
+			except:
+				pass
+		if not args.preserve_inputs:
+			for output_type in ["features", "feature_mapping", "field", "pos_stats", "response", "xval", "missing_seqs", "groups", "slep_opts", "sweights"]:
+				for fname in all_files.get(output_type, []):
+					try:
+						os.remove(os.path.join(args.output, fname))
+					except:
+						pass
+	return hypothesis_file_list
 
 
 def lambda_val2label(lambda_val):
@@ -236,6 +381,7 @@ if __name__ == '__main__':
 	parser.add_argument("--skip_preprocessing", help="Assume preprocessing files have already been generated.", action='store_true', default=False)
 	parser.add_argument("--skip_processing", help="Assume results XML files have already been generated.", action='store_true', default=False)
 	parser.add_argument("--preserve_xml", help="Leave results XML files in place for reprocessing.", action='store_true', default=False)
+	parser.add_argument("--preserve_inputs", help="Leave input files in place for reprocessing.", action='store_true', default=False)
 	parser.add_argument("-z", "--lambda1", help="Feature sparsity parameter.", type=float, default=0.1)
 	parser.add_argument("-y", "--lambda2", help="Group sparsity parameter.", type=float, default=0.1)
 	#parser.add_argument("--grid_z", help="Grid search sparsity parameter interval specified as 'min,max,step_size'", type=str, default=None)
@@ -293,6 +439,8 @@ if __name__ == '__main__':
 			args.stats_out = "BPGHS"
 		if args.m_grid is None:
 			args.m_grid = "20,30"
+	if args.lambda1_range is not None and args.lambda2_range is not None and args.kfold > 1:
+		raise Exception("Cannot use --kfold option while running in grid search mode.")
 	single_lambda_pair = False
 	#Convert single run to 1x1 grid run
 	if args.lambda1_range is None and args.lambda2_range is None:
@@ -340,11 +488,13 @@ if __name__ == '__main__':
 		args.lambda2 = 0.0000000001
 	if (args.grid_z is None and args.grid_y is not None) or (args.grid_y is None and args.grid_z is not None):
 		raise Exception("Only one grid search parameter specified, --grid_z and --grid_y must be specified together.")
-	elif args.grid_z is not None and args.grid_y is not None:
+	elif args.grid_z is not None and args.grid_y is not None and args.xval <= 1:
 		all_files = {"HSS": "HSS.txt"}
 		try:
 			args_original = copy.deepcopy(args)
 			output_folder = args.output
+			if not os.path.exists(output_folder):
+				os.mkdir(output_folder)
 			hypothesis_file_list = []
 			# for x in args.grid_z.strip().split(','):
 			# 	print(x)
@@ -361,7 +511,12 @@ if __name__ == '__main__':
 			start = datetime.now()
 			input_files = {}
 			input_files["hypothesis_file_list"], input_files["slep_opts_file_list"] = pf.generate_hypothesis_set(args)
+			print(input_files["slep_opts_file_list"])
 			all_files["hypothesis"] = [os.path.basename(file) for file in input_files["hypothesis_file_list"]]
+			all_files["slep_opts"] = [os.path.basename(file) for file in input_files["slep_opts_file_list"]]
+			all_files["sweights"] = [fname.replace("slep_opts", "sweights") for fname in all_files["slep_opts"]]
+			all_files["xval"] = [fname.replace("slep_opts", "xval_groups") for fname in all_files["slep_opts"]]
+#			raise Exception("Testing")
 			input_files["features_filename_list"], input_files["groups_filename_list"], input_files["response_filename_list"], input_files["gene_list"], \
 				input_files["field_filename_list"], input_files["group_list"] = pf.generate_input_matrices(args.aln_list, input_files["hypothesis_file_list"], args)
 			for key in input_files.keys():
@@ -405,9 +560,9 @@ if __name__ == '__main__':
 				all_files["PSS_median"] = all_files["PSS_median"] + ["{}_PSS_median.txt".format(hypothesis)]
 				all_files["SPS_SPP_median"] = all_files["SPS_SPP_median"] + ["{}_SPS_SPP_median.txt".format(hypothesis)]
 				all_files["GCS_median"] = all_files["GCS_median"] + ["{}_GCS_median.txt".format(hypothesis)]
-				all_files["slep_opts"] = all_files["slep_opts"] + ["{}_{}_slep_opts.txt".format(hypothesis, args_original.output)]
-				all_files["sweights"] = all_files["sweights"] + ["{}_{}_sweights.txt".format(hypothesis, args_original.output)]
-				all_files["xval"] = all_files["xval"] + ["{}_{}_xval_groups.txt".format(hypothesis, args_original.output)]
+				all_files["slep_opts"] = all_files["slep_opts"] + ["{}_{}_slep_opts.txt".format(hypothesis, args.output)]
+				all_files["sweights"] = all_files["sweights"] + ["{}_{}_sweights.txt".format(hypothesis, args.output)]
+				all_files["xval"] = all_files["xval"] + ["{}_{}_xval_groups.txt".format(hypothesis, args.output)]
 				all_files["pos_stats"] = all_files["pos_stats"] + ["pos_stats_{}_{}_hypothesis.txt".format(hypothesis, args_original.output)]
 				all_files["response"] = all_files["response"] + ["response_{}_{}_hypothesis.txt".format(hypothesis, args_original.output)]
 				all_files["features"] = all_files["features"] + ["feature_{}_{}_hypothesis.txt".format(hypothesis, args_original.output)]
@@ -521,7 +676,7 @@ if __name__ == '__main__':
 			for key in all_files.keys():
 				for file in all_files[key]:
 					try:
-						shutil.move(file, args_original.output)
+						shutil.move(file, os.path.join(args_original.output, file))
 						if not message_triggered:
 							print("Exception encountered, attempting to clean up files...")
 							message_triggered = True
@@ -554,50 +709,51 @@ if __name__ == '__main__':
 					except:
 						pass
 			for output_type in ["SPS_SPP", "PSS", "GSS", "hypothesis"]:
-				for fname in all_files[output_type]:
+				for fname in all_files.get(output_type, []):
 					new_fname = "{}_{}".format(output_type, fname.replace("_{}".format(output_type), "").replace("_{}".format(args_original.output), ""))
 					try:
 						shutil.move(os.path.join(args_original.output, fname), os.path.join(args_original.output, new_fname))
 					except:
 						pass
 			for output_type in ["SPS_SPP_median", "PSS_median", "GSS_median"]:
-				for fname in all_files[output_type]:
+				for fname in all_files.get(output_type, []):
 					new_fname = "{}_{}".format(output_type.replace("_median", ""), fname.replace(output_type, "summary"))
 					try:
 						shutil.move(os.path.join(args_original.output, fname), os.path.join(args_original.output, new_fname))
 					except:
 						pass
-			for fname in all_files["feature_weights"]:
+			for fname in all_files.get("feature_weights", []):
 				new_fname = "MyESL_model_{}".format(fname.replace("_{}_hypothesis_out_feature_weights".format(args_original.output), ""))
 				try:
 					shutil.move(os.path.join(args_original.output, fname), os.path.join(args_original.output, new_fname))
 				except:
 					pass
-			for fname in all_files["gene_predictions"]:
+			for fname in all_files.get("gene_predictions", []):
 				new_fname = "GSC_{}".format(fname.replace("_{}_gene_predictions".format(args_original.output), ""))
 				try:
 					shutil.move(os.path.join(args_original.output, fname), os.path.join(args_original.output, new_fname))
 				except:
 					pass
-			for fname in all_files["prediction_pngs"]:
+			for fname in all_files.get("prediction_pngs", []):
 				new_fname = "GSC_{}".format(fname.replace("_{}_gene_predictions".format(args_original.output), ""))
 				try:
 					shutil.move(os.path.join(args_original.output, fname), os.path.join(args_original.output, new_fname))
 				except:
 					pass
-			for fname in all_files["GCS_median"]:
+			for fname in all_files.get("GCS_median", []):
 				new_fname = "M-Grid_{}".format(fname.replace("_GCS_median", ""))
 				try:
 					shutil.move(os.path.join(args_original.output, fname), os.path.join(args_original.output, new_fname))
 					shutil.move(os.path.join(args_original.output, fname.replace(".txt", ".png")), os.path.join(args_original.output, new_fname.replace(".txt", ".png")))
 				except:
 					pass
-			for output_type in ["features", "feature_mapping", "field", "pos_stats", "response", "xval", "missing_seqs", "groups"]:
-				for fname in all_files[output_type]:
-					try:
-						os.remove(os.path.join(args_original.output, fname))
-					except:
-						pass
+			if not args.preserve_inputs:
+				for output_type in ["features", "feature_mapping", "field", "pos_stats", "response", "xval", "missing_seqs", "groups", "slep_opts", "sweights"]:
+					for fname in all_files.get(output_type, []):
+						try:
+							os.remove(os.path.join(args_original.output, fname))
+						except:
+							pass
 
 
 	else:
