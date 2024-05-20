@@ -97,8 +97,6 @@ def main(args):
 	all_files = {"HSS": "HSS.txt"}
 	try:
 		hypothesis_file_list, slep_opts_file_list = pf.generate_hypothesis_set(args)
-		print(hypothesis_file_list)
-		print(slep_opts_file_list)
 		all_files["hypothesis"] = [os.path.basename(file) for file in hypothesis_file_list]
 		all_files["slep_opts"] = [fname.replace("hypothesis.txt", "slep_opts.txt") for fname in all_files["hypothesis"]]
 		all_files["sweights"] = [fname.replace("slep_opts", "sweights") for fname in all_files["slep_opts"]]
