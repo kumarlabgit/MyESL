@@ -124,8 +124,11 @@ def main(predictions_table, lead_cols=4, response_idx=2, prediction_idx=3, outpu
 	expit = [1/(1 + math.exp(-x)) for x in data[:, 1]]
 	pr = [(x - 0.5)/(max(expit) - 0.5) for x in expit]
 	pr = [x if x > 0 else 0 for x in pr]
-	sorted_rows = list(zip(range(0, num_rows), pr, data[:, 0]))
-	sorted_rows.sort(key=lambda tup: (tup[2], tup[1]), reverse=True)
+	sorted_rows = list(zip(range(0, num_rows), pr, data[:, 0], [val*-1 for val in pr]))
+	if m_grid:
+		sorted_rows.sort(key=lambda tup: (tup[2], tup[3]), reverse=True)
+	else:
+		sorted_rows.sort(key=lambda tup: (tup[2], tup[1]), reverse=True)
 	data = data[[val[0] for val in sorted_rows]]
 	with open(predictions_table.replace("gene_predictions", "SPS_SPP").replace("GCS_median", "SPS_SPP_median"), 'w') as sps_file:
 		sps_file.write("seq_id\tresponse\tSPS\tSPP\n")
@@ -149,6 +152,13 @@ def main(predictions_table, lead_cols=4, response_idx=2, prediction_idx=3, outpu
 	# Reset dimensions if truncation has occurred.
 	num_rows, num_cols = data.shape
 
+	# Create red-white-green colormap
+	top = mpl.cm.get_cmap('Reds_r', 128)
+	bottom = mpl.cm.get_cmap('Greens', 128)
+	newcolors = np.vstack((top(np.linspace(0, 1, 128)), bottom(np.linspace(0, 1, 128))))
+	cmap = mpl.colors.ListedColormap(newcolors, name='GreenWhiteRed')
+
+
 	# draw gridlines
 	xtick_width = 20
 	ytick_width = 20
@@ -157,26 +167,31 @@ def main(predictions_table, lead_cols=4, response_idx=2, prediction_idx=3, outpu
 	cell_label_size = 2.0
 	DPI = 600
 	ax.grid(which='major', axis='both', linestyle='-', color='k', linewidth=0.2)
-	# Make red-yellow-green color map with NaN=blue
-	cmap = copy.copy(mpl.cm.get_cmap("RdYlGn"))
-	cmap.set_bad(color='lightskyblue')
+	# Make red-yellow-green color map with NaN=grey
+	#cmap = copy.copy(mpl.cm.get_cmap("RdYlGn"))
+	cmap.set_bad(color='grey')
 	# Apply color map to first three columns, and then separately to the rest of the columns
 	if m_grid:
-		ax.imshow(data[:, :], cmap=cmap, norm=TwoSlopeNorm(0), extent=(0, num_cols * xtick_width, num_rows * ytick_width, 0))
+		max_abs_val = max([abs(data.max()), abs(data.min())])
+		ax.imshow(data[:, :], cmap=cmap, norm=TwoSlopeNorm(0, -max_abs_val, max_abs_val), extent=(0, num_cols * xtick_width, num_rows * ytick_width, 0))
 	else:
 		# ax.imshow(data[:, 0:3], cmap=cmap, norm=TwoSlopeNorm(0), extent=(0, (lead_cols - 1) * xtick_width, num_rows * ytick_width, 0))
 		# ax.imshow(data[:, 3:], cmap=cmap, norm=TwoSlopeNorm(0), extent=((lead_cols - 1)*xtick_width, num_cols*xtick_width, num_rows*ytick_width, 0))
 		#for i in range(0, lead_cols-1):
 		for i in range(0, 2):
 			ax.imshow(data[:, i:i+1], cmap=cmap, norm=TwoSlopeNorm(0), extent=(i*xtick_width, (i+1) * xtick_width, num_rows * ytick_width, 0))
-		ax.imshow(data[:, lead_cols-1:], cmap=cmap, norm=TwoSlopeNorm(0), extent=((lead_cols - 1)*xtick_width, num_cols * xtick_width, num_rows * ytick_width, 0))
-	ax.set_xticks(np.arange(0, num_cols * xtick_width, xtick_width));
+		max_abs_val = max([abs(data[:, lead_cols-1:].max()), abs(data[:, lead_cols-1:].min())])
+		ax.imshow(data[:, lead_cols-1:], cmap=cmap, norm=TwoSlopeNorm(0, -max_abs_val, max_abs_val), extent=((lead_cols - 1)*xtick_width, num_cols * xtick_width, num_rows * ytick_width, 0))
+	ax.set_xticks(np.arange(0, num_cols * xtick_width, xtick_width))
 	ax.set_xticklabels(header, rotation=90, ha='left', size=label_size)
-	ax.set_yticks(np.arange(0, num_rows * ytick_width, ytick_width));
+	ax.set_yticks(np.arange(0, num_rows * ytick_width, ytick_width))
 	ax.set_yticklabels(seqid_list, va="top", size=label_size)
-	ax.set_xlabel('Alignment Names', fontsize=label_size*1.25)
+	ax.set_xlabel('Group Names', fontsize=label_size*1.25)
 	ax.set_ylabel('Sequence IDs', fontsize=label_size*1.25)
-	ax.set_title('Group Contribution Weights', fontsize=label_size*1.75)
+	if m_grid:
+		ax.set_title('M-Grid', fontsize=label_size * 1.75)
+	else:
+		ax.set_title('Group Sparsity Scores', fontsize=label_size*1.75)
 	for (i, j), z in np.ndenumerate(data):
 		if not m_grid:
 			if j < lead_cols - 1:

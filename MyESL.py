@@ -391,9 +391,9 @@ if __name__ == '__main__':
 	parser.add_argument("--grid_rmse_cutoff", help="RMSE cutoff when selecting models to aggregate.", type=float, default=100.0)
 	parser.add_argument("--grid_acc_cutoff", help="Accuracy cutoff when selecting models to aggregate.", type=float, default=0.0)
 	parser.add_argument("--grid_threads", help="Number of threads to use when aggregating grid search results.", type=int, default=None)
-	parser.add_argument("--grid_summary_only", help="Skip generating graphics for individual runs/models.", action='store_true', default=False)
+	parser.add_argument("--grid_summary_only", help="Skip generating graphics for individual runs/models and remove individual model files.", action='store_true', default=False)
 	#parser.add_argument("--grid_gene_threshold", help="Stop increasing L2 when model selects this many genes or fewer.", type=int, default=None)
-	parser.add_argument("--min_groups", help="Stop increasing L2 when model selects this many genes or fewer.", type=int, default=None)
+	parser.add_argument("--min_groups", help="Stop increasing L2 when model selects this many genes or fewer.", type=int, default=0)
 	parser.add_argument("--no_group_penalty", help="Perform mono-level optimization, ignoring group level sparsity penalties.",
 						action='store_true', default=False)
 	parser.add_argument("-o", "--output", help="Output directory.", type=str, default="output")
@@ -424,6 +424,7 @@ if __name__ == '__main__':
 	if args.tree is None and args.gen_clade_list:
 		raise Exception("Cannot use --gen_clade_list option and --classes options simultaneously.")
 	if args.DrPhylo:
+		args.grid_summary_only = True
 		if args.class_bal is None:
 			if args.classes is not None:
 				args.class_bal = "weighted"
@@ -511,11 +512,12 @@ if __name__ == '__main__':
 			start = datetime.now()
 			input_files = {}
 			input_files["hypothesis_file_list"], input_files["slep_opts_file_list"] = pf.generate_hypothesis_set(args)
-			print(input_files["slep_opts_file_list"])
 			all_files["hypothesis"] = [os.path.basename(file) for file in input_files["hypothesis_file_list"]]
-			all_files["slep_opts"] = [os.path.basename(file) for file in input_files["slep_opts_file_list"]]
+			#all_files["slep_opts"] = [os.path.basename(file) for file in input_files["slep_opts_file_list"]]
+			all_files["slep_opts"] = [fname.replace("hypothesis.txt", "slep_opts.txt") for fname in all_files["hypothesis"]]
 			all_files["sweights"] = [fname.replace("slep_opts", "sweights") for fname in all_files["slep_opts"]]
 			all_files["xval"] = [fname.replace("slep_opts", "xval_groups") for fname in all_files["slep_opts"]]
+
 #			raise Exception("Testing")
 			input_files["features_filename_list"], input_files["groups_filename_list"], input_files["response_filename_list"], input_files["gene_list"], \
 				input_files["field_filename_list"], input_files["group_list"] = pf.generate_input_matrices(args.aln_list, input_files["hypothesis_file_list"], args)
@@ -741,13 +743,47 @@ if __name__ == '__main__':
 				except:
 					pass
 			for fname in all_files.get("GCS_median", []):
-				new_fname = "M-Grid_{}".format(fname.replace("_GCS_median", ""))
-				try:
-					shutil.move(os.path.join(args_original.output, fname), os.path.join(args_original.output, new_fname))
-					shutil.move(os.path.join(args_original.output, fname.replace(".txt", ".png")), os.path.join(args_original.output, new_fname.replace(".txt", ".png")))
-				except:
-					pass
+				if single_lambda_pair:
+					try:
+						os.remove(os.path.join(args_original.output, fname.replace(".txt", ".png")))
+					except:
+						pass
+				else:
+					new_fname = "M-Grid_{}".format(fname.replace("_GCS_median", ""))
+					try:
+						shutil.move(os.path.join(args_original.output, fname), os.path.join(args_original.output, new_fname))
+						shutil.move(os.path.join(args_original.output, fname.replace(".txt", ".png")), os.path.join(args_original.output, new_fname.replace(".txt", ".png")))
+					except:
+						pass
 			if not args.preserve_inputs:
+				for output_type in ["features", "feature_mapping", "field", "pos_stats", "response", "xval", "missing_seqs", "groups", "slep_opts", "sweights"]:
+					for fname in all_files.get(output_type, []):
+						try:
+							os.remove(os.path.join(args_original.output, fname))
+						except:
+							pass
+			if args.grid_summary_only:
+				for fname in all_files.get("gene_predictions", []):
+					new_fname = "GSC_{}".format(fname.replace("_{}_gene_predictions".format(args_original.output), ""))
+					try:
+						os.remove(os.path.join(args_original.output, new_fname))
+					except:
+						pass
+				for fname in all_files.get("feature_weights", []):
+					new_fname = "MyESL_model_{}".format(fname.replace("_{}_hypothesis_out_feature_weights".format(args_original.output), ""))
+					try:
+						os.remove(os.path.join(args_original.output, new_fname))
+					except:
+						pass
+				for output_type in ["SPS_SPP", "PSS", "GSS"]:
+					for fname in all_files.get(output_type, []):
+						new_fname = "{}_{}".format(output_type, fname.replace("_{}".format(output_type), "").replace("_{}".format(args_original.output), ""))
+						try:
+							os.remove(os.path.join(args_original.output, new_fname))
+						except:
+							pass
+
+
 				for output_type in ["features", "feature_mapping", "field", "pos_stats", "response", "xval", "missing_seqs", "groups", "slep_opts", "sweights"]:
 					for fname in all_files.get(output_type, []):
 						try:

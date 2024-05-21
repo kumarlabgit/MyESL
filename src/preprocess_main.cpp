@@ -73,10 +73,10 @@ int main(int argc, char *argv[])
 				cout << "Ignoring singleton mutations..." << endl;
 			}
 			if (strcmp(argv[i], "ct") == 0)
-                        {
-                                cout << "Ignoring mutations observed fewer than " << argv[i+1] << "times..." << endl;
+			{
+				cout << "Ignoring mutations observed fewer than " << argv[i+1] << "times..." << endl;
 				data->setCountThreshold(std::stoi(argv[i+1]));
-                        }
+			}
 			if (strcmp(argv[i], "ub") == 0)
 			{
 				data->setUpsampleBalance(true);
@@ -92,6 +92,11 @@ int main(int argc, char *argv[])
 			if (strcmp(argv[i], "useCaching") == 0)
 			{
 				data->setDiskCaching(true);
+			}
+			if (strcmp(argv[i], "dataType") == 0)
+			{
+				data->setDataType(argv[i+1]);
+				cout << "Setting dataType to " << argv[i+1] << " alignment." << endl;
 			}
 			if (strcmp(argv[i], "useTabs") == 0)
 			{

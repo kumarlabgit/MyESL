@@ -29,6 +29,9 @@ alnData::alnData()
 	this->featureIndex = 1;
 	this->normalize = false;
 	this->useDiskCache = false;
+	this->validCharSets["nucleotide"] = "ATCGU";
+	this->validCharSets["protein"] = "ACDEFGHIKLMNPQRSTVWY";
+	this->validCharSets["molecular"] = "ACDEFGHIKLMNPQRSTVWYU";
 }
 
 void alnData::initialize(string speciesFile, string alnFileList)
@@ -82,6 +85,16 @@ void alnData::setDiskCaching(bool useDiskCache)
 void alnData::setIndelFuzzing(bool indelFuzzing)
 {
 	this->indelFuzzing = indelFuzzing;
+}
+
+void alnData::setDataType(string dataType)
+{
+	this->dataType = dataType;
+	if (dataType == "nucleotide" || dataType == "protein" || dataType == "molecular")
+	{
+		this->caseSensitive = false;
+		this->validChars = this->validCharSets[dataType];
+	}
 }
 
 void alnData::readTraits(string speciesFile)
@@ -242,6 +255,7 @@ void alnData::processFastaFileList(string alnFileList)
 
 void alnData::readAln(string fastaFileName)
 {
+	auto isInvalidChar = [&](char c){return this->validChars.find(c) == std::string::npos;};
 	string line;
 	int seqlen = 0;
 	std::size_t found;
@@ -272,6 +286,10 @@ void alnData::readAln(string fastaFileName)
 				seqid = line.substr(1,string::npos);
 				seq = "";
 			} else if (seqid.length() > 0) {
+				if (!this->caseSensitive) {
+					std::transform(line.begin(), line.end(), line.begin(), ::toupper);
+					std::replace_if(line.begin(), line.end(), isInvalidChar, '-');
+				}
 				seq = seq + line;
 			}
 		}

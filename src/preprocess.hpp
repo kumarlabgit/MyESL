@@ -32,6 +32,7 @@ class alnData
 		void setDownsampleBalance(bool downsampleBalance);
 		void setDiskCaching(bool useDiskCache);
 		void setIndelFuzzing(bool indelFuzzing);
+		void setDataType(string dataType);
 		void balanceSample();
 
 	private:
@@ -43,7 +44,10 @@ class alnData
 		bool downsampleBalance = false;
 		bool useDiskCache = false;
 		bool indelFuzzing = false;
+		bool caseSensitive = true;
 		int countThreshold;
+		string dataType = "universal";
+		string validChars;
 		string currentGene;
 		string delimiter;
 		vector<string> species;
@@ -53,6 +57,7 @@ class alnData
 		map<string, int> geneGroupIndex;
 		map<string, float> traits;
 		map<string, string> seqs;
+		map<string, string> validCharSets;
 		map<int, string> featureMap;
 		map<int, vector<float>> features;
 		vector<string> featureCacheFiles;

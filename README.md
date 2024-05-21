@@ -9,7 +9,7 @@ We discuss every required and optional argument for ESL analysis of an example d
 ### Download ###
 You can download `MyESL` from the GitHub repository or use the command 
 
-	git clone -b grid_search https://github.com/kumarlabgit/MyESL MyESL
+	git clone https://github.com/kumarlabgit/MyESL MyESL
 	cd ESL
 
 ### Usage ###
@@ -61,9 +61,9 @@ Users can also specify other options in MyESL for processing the input data, bui
 <br />
 
 ```
---clade_list <string1, string2,...> : Users can test multiple phylogenetic hypotheses when the input phylogenetic tree contains multiple clade IDs. This option must be used with "--tree" option.
+--clade_list <filename.txt>         : Users can test multiple phylogenetic hypotheses when the input phylogenetic tree contains multiple clade IDs. Clade list file should have one clade ID on each line. This option must be used with "--tree" option.
 
---gen_clade_list <int, int>         : Users can generate multiple hypotheses when the input phylogeny contains no clade ID. The size of the clade is determined by the input integers defining the upper and lower limits
+--gen_clade_list <int,int>          : Users can generate multiple hypotheses when the input phylogeny contains no clade ID. The size of the clade is determined by the input integers defining the upper and lower limits
                                       of clade size, respectively.
    
 --class_bal <string>                : MyESL performs class balancing, a common practice in supervised machine learning. Class balancing helps balance the number of species inside and outside the focal clade of interest.
@@ -89,11 +89,11 @@ Users can also specify other options in MyESL for processing the input data, bui
 
 --lambda2 <float>                    : The gene sparsity parameter ranges from 0 to 1, and the default is 0.1 when not specified. It is required to build a single-clade model.
 
---lamda1_grid <min, max, step>       : This option allows users to set the range for the site sparsity parameter. The site sparsity grid is defined by a string of float numbers min, max, and step_size, which range from 0 to 1.
-                                       For example, --lamda1_range 0.1, 0.9, 0.1. This option must be used with --lamda2_range.  
+--lamda1_range <min,max,step>        : This option allows users to set the range for the site sparsity parameter. The site sparsity grid is defined by a string of float numbers min, max, and step_size, which range from 0 to 1.
+                                       For example, --lamda1_range 0.1,0.9,0.1. This option must be used with --lamda2_range.  
 
---lamda2_grid <min, max, step>       : This option allows users to set the range for the group sparsity parameter. The group sparsity grid is defined by a string of float numbers min, max, and step_size, which range from 0 to 1.
-                                       For example, --lamda2_range 0.1, 0.9, 0.1. This option must be used with --lamda1_range. 
+--lamda2_range <min,max,step>        : This option allows users to set the range for the group sparsity parameter. The group sparsity grid is defined by a string of float numbers min, max, and step_size, which range from 0 to 1.
+                                       For example, --lamda2_range 0.1,0.9,0.1. This option must be used with --lamda1_range. 
 
 --min_groups <int>                   : This option allows users to set the minimum number of genes included in the multi-gene ESL models and helps early stopping in the grid search over the sparsity parameter space.
                                        It takes a value greater than zero (0) and builds models containing more or equal numbers of groups in the model.
@@ -115,7 +115,7 @@ Users can also specify other options in MyESL for processing the input data, bui
 ```
 --output <string>                   : The name of the output directory where all results from MyESL analysis will be stored. The program creates an output directory automatically if it is not specified.
 
---stats_out <BPGHS>                 : MyESL processes the ESL model and outputs, Bit Sparsity Scores (<B>), Position Sparsity Scores (<P>), Gene Sparsity Scores (<G>), Hypothesis Sparsity Scores (<H>), and
+--stats_out <PGHS>                  : MyESL processes the ESL model and outputs, Position Sparsity Scores (<P>), Gene Sparsity Scores (<G>), Hypothesis Sparsity Scores (<H>), and
                                       Species Sparsity Scores and Prediction Probability (<S>). Users can output multiple files using multiple inputs like <BPS>. Details of these scores can be found in reference #1.  
 ```
 <br />	
@@ -131,7 +131,6 @@ MyESL produces multiple output files based on different user analysis directives
 ```
 ESL_model_{clade_ID}.txt   : A tab-separated text file containing allele at each position in a group and non-zero beta values estimated from sparse group lasso analysis. 
 
-BSS_{clade_ID}.txt         : A tab-separated text file containing allele at each position in a group and non-zero bit sparsity score.
 PSS_{clade_ID}.txt         : A tab-separated text file containing position ID in a group and non-zero position sparsity scores.
 GSS_{clade_ID}.txt         : A tab-separated text file containing group ID and non-zero group sparsity scores.
 HSS_{clade_ID}.txt         : A text file containing hypothesis sparsity scores.
@@ -149,13 +148,11 @@ When grid options for penalty parameters are used, MyESL produces multiple ESL m
 ```
 ESL_model_{clade_ID}_l1_l2.txt   : A tab-separated text file containing allele at each position in a group and non-zero beta values estimated from sparse group lasso analysis. 
 
-BSS_{clade_ID}_l1_l2.txt         : A tab-separated text file containing allele at each position in a group and non-zero bit sparsity score.
 PSS_{clade_ID}_l1_l2.txt         : A tab-separated text file containing position ID in a group and non-zero position sparsity scores.
 GSS_{clade_ID}_l1_l2.txt         : A tab-separated text file containing group ID and non-zero group sparsity scores.
 HSS_{clade_ID}_l1_l2.txt         : A text file containing hypothesis sparsity scores.
 SPS_SPP_{clade_ID}_l1_l2.txt     : A tab-separated text file containing species name, regression response, species prediction score, and prediction probability. 
 
-BSS_{clade_ID}_summary.txt         : A tab-separated text file containing allele at each position in a group and non-zero bit sparsity score.
 PSS_{clade_ID}_summary.txt         : A tab-separated text file containing position ID in a group and non-zero position sparsity scores.
 GSS_{clade_ID}_summary.txt         : A tab-separated text file containing group ID and non-zero group sparsity scores.
 HSS_{clade_ID}_summary.txt         : A text file containing hypothesis sparsity scores.
@@ -185,7 +182,7 @@ You can install these libraries using pip:
 
 To perform DrPhylo analysis, get the ESL package using the following on the command line:
 
-	git clone -b grid_search https://github.com/kumarlabgit/MyESL MyESL
+	git clone -b https://github.com/kumarlabgit/MyESL MyESL
 	cd MyESL
 	bash setup.sh
 
@@ -197,4 +194,3 @@ If you use MyESL in your research, please cite our articles:
 1. Kumar, S. and Sharma, S (2021). Evolutionary Sparse Learning for Phylogenomics, Molecular Biology and Evolution, Volume 38, Issue 11, November 2021, Pages 4674–4682.
 2. Sharma, S. & Kumar, S. (2024). Discovering fragile clades and causal sequences in phylogenomics by evolutionary sparse learning. (In review)
 3. Sanderford et al., (2024).  MyESL: A software for evolutionary sparse learning in molecular phylogenetics and genomics (In preparation).
-
