@@ -29,9 +29,9 @@ alnData::alnData()
 	this->featureIndex = 1;
 	this->normalize = false;
 	this->useDiskCache = false;
-	this->validCharSets["nucleotide"] = "ATCG";
-	this->validCharSets["protein"] = "ARNDCQEGHILKMFPSTWYV";
-	this->validCharSets["molecular"] = "ARNDCQEGHILKMFPSTWYV";
+	this->validCharSets["nucleotide"] = "ATCGU";
+	this->validCharSets["protein"] = "ACDEFGHIKLMNPQRSTVWY";
+	this->validCharSets["molecular"] = "ACDEFGHIKLMNPQRSTVWYU";
 }
 
 void alnData::initialize(string speciesFile, string alnFileList)
