@@ -378,30 +378,21 @@ if __name__ == '__main__':
 	# parser.add_argument("--upsample_balance", help="Balance positive and negative response sets by upsampling the underpopulated set.", action='store_true', default=False)
 	# parser.add_argument("--downsample_balance", help="Balance positive and negative response sets by downsampling the overpopulated set.", action='store_true', default=False)
 	parser.add_argument("--class_bal", help="Sample balancing type:['weighted', 'up', 'down', 'phylo'(, 'phylo_1', 'phylo_2')]", type=str, default=None)
-	parser.add_argument("--skip_preprocessing", help="Assume preprocessing files have already been generated.", action='store_true', default=False)
-	parser.add_argument("--skip_processing", help="Assume results XML files have already been generated.", action='store_true', default=False)
-	parser.add_argument("--preserve_xml", help="Leave results XML files in place for reprocessing.", action='store_true', default=False)
-	parser.add_argument("--preserve_inputs", help="Leave input files in place for reprocessing.", action='store_true', default=False)
+	parser.add_argument("--preserve_inputs", help="Leave input files in place for inspection.", action='store_true', default=False)
 	parser.add_argument("-z", "--lambda1", help="Feature sparsity parameter.", type=float, default=0.1)
 	parser.add_argument("-y", "--lambda2", help="Group sparsity parameter.", type=float, default=0.1)
 	#parser.add_argument("--grid_z", help="Grid search sparsity parameter interval specified as 'min,max,step_size'", type=str, default=None)
 	#parser.add_argument("--grid_y", help="Grid search group sparsity parameter interval specified as 'min,max,step_size'", type=str, default=None)
-	parser.add_argument("--lambda1_range", help="Grid search sparsity parameter interval specified as 'min,max,step_size'", type=str, default=None)
-	parser.add_argument("--lambda2_range", help="Grid search group sparsity parameter interval specified as 'min,max,step_size'", type=str, default=None)
+	parser.add_argument("--lambda1_grid", help="Grid search sparsity parameter interval specified as 'min,max,step_size'", type=str, default=None)
+	parser.add_argument("--lambda2_grid", help="Grid search group sparsity parameter interval specified as 'min,max,step_size'", type=str, default=None)
 	parser.add_argument("--grid_rmse_cutoff", help="RMSE cutoff when selecting models to aggregate.", type=float, default=100.0)
 	parser.add_argument("--grid_acc_cutoff", help="Accuracy cutoff when selecting models to aggregate.", type=float, default=0.0)
-	parser.add_argument("--grid_threads", help="Number of threads to use when aggregating grid search results.", type=int, default=None)
 	parser.add_argument("--grid_summary_only", help="Skip generating graphics for individual runs/models and remove individual model files.", action='store_true', default=False)
 	#parser.add_argument("--grid_gene_threshold", help="Stop increasing L2 when model selects this many genes or fewer.", type=int, default=None)
 	parser.add_argument("--min_groups", help="Stop increasing L2 when model selects this many genes or fewer.", type=int, default=0)
 	parser.add_argument("--no_group_penalty", help="Perform mono-level optimization, ignoring group level sparsity penalties.",
 						action='store_true', default=False)
 	parser.add_argument("-o", "--output", help="Output directory.", type=str, default="output")
-	parser.add_argument("--fuzz_indels", help="Assign indels in variable sites a one-hot value of 0.5 instead of 0.", action='store_true', default=False)
-	parser.add_argument("--ensemble_parts", help="Build gene-wise ensemble models, splitting the set of genes into N partitions for each run.", type=int, default=None)
-	parser.add_argument("--ensemble_coverage", help="Number of ensemble models to build. Each gene will be included in this many individual models.", type=int, default=5)
-	parser.add_argument("--sparsify", help="Iteratively increase sparsity until selected set of genes fits in one partition.", action='store_true', default=False)
-	parser.add_argument("--method", help="SGLasso type to use. Options are \"logistic\", \"leastr\", or \"ol_leastr\". Defaults to \"leastr\".", type=str, default="logistic")
 	parser.add_argument("--slep_opts", help="File of tab-separated name-value pairs (one per line) to specify SLEP options.", type=str, default=None)
 	#parser.add_argument("--gene_penalties", help="File of penalty values (same order as aln_list) to specify penalty score for each gene.", type=str, default=None)
 	parser.add_argument("--group_wt", help="File of penalty values (same order as aln_list) to specify penalty score for each gene.", type=str, default=None)
@@ -413,10 +404,35 @@ if __name__ == '__main__':
 	#parser.add_argument("--m_grid", help="Generate m-grid graphical output.", action='store_true', default=False)
 	parser.add_argument("--m_grid", help="Generate m-grid graphical output with display limited to <rows>,<cols>, e.g. \"--m_grid 10,20\" .", type=str, default=None)
 	parser.add_argument("--bit_ct", help="Ignore mutations observed fewer than N times.", type=int, default=1)
-	parser.add_argument("--stats_out", help="<str[BPGHS]*> Various single-character flags for output produced, consult README for more info.", type=str, default="")
+	parser.add_argument("--stats_out", help="<str[PGHS]*> Various single-character flags for output produced, consult README for more info.", type=str, default="")
 	parser.add_argument("--data_type", help="<Options are \"nucleotide\", \"protein\", \"molecular\", \"universal\". Consult documentation for detailed info.", type=str, default="universal")
 	parser.add_argument("--DrPhylo", help="Run Dr Phylo type analysis.", action='store_true', default=False)
+
+	## Deactivated options ##
+	# parser.add_argument("--skip_preprocessing", help="Assume preprocessing files have already been generated.", action='store_true', default=False)
+	# parser.add_argument("--skip_processing", help="Assume results XML files have already been generated.", action='store_true', default=False)
+	# parser.add_argument("--preserve_xml", help="Leave results XML files in place for reprocessing.", action='store_true', default=False)
+	# parser.add_argument("--fuzz_indels", help="Assign indels in variable sites a one-hot value of 0.5 instead of 0.", action='store_true', default=False)
+	# parser.add_argument("--ensemble_parts", help="Build gene-wise ensemble models, splitting the set of genes into N partitions for each run.", type=int, default=None)
+	# parser.add_argument("--ensemble_coverage", help="Number of ensemble models to build. Each gene will be included in this many individual models.", type=int, default=5)
+	# parser.add_argument("--sparsify", help="Iteratively increase sparsity until selected set of genes fits in one partition.", action='store_true', default=False)
+	# parser.add_argument("--method", help="SGLasso type to use. Options are \"logistic\", \"leastr\", or \"ol_leastr\". Defaults to \"leastr\".", type=str, default="logistic")
+	# parser.add_argument("--grid_threads", help="Number of threads to use when aggregating grid search results.", type=int, default=None)
+
 	args = parser.parse_args()
+	args.method = "logistic"
+
+	## Potentially load bearing cruft ##
+	args.skip_preprocessing = False
+	args.skip_processing = False
+	args.preserve_xml = False
+	args.fuzz_indels = False
+	args.ensemble_parts = None
+	args.ensemble_coverage = 5
+	args.sparsify = False
+	args.grid_threads = None
+	## End cruft ##
+
 	if args.classes is None and args.tree is None:
 		raise Exception("Must invoke one of --tree or --classes option.")
 	if args.classes is not None and args.tree is not None:
@@ -430,23 +446,23 @@ if __name__ == '__main__':
 				args.class_bal = "weighted"
 			if args.tree is not None:
 				args.class_bal = "phylo"
-		if args.lambda1_range is None:
-			args.lambda1_range = "0.1,1.0,0.1"
-		if args.lambda2_range is None:
-			args.lambda2_range = "0.1,1.0,0.1"
+		if args.lambda1_grid is None:
+			args.lambda1_grid = "0.1,1.0,0.1"
+		if args.lambda2_grid is None:
+			args.lambda2_grid = "0.1,1.0,0.1"
 		if args.min_groups is None:
 			args.min_groups = 1
 		if args.stats_out == "":
-			args.stats_out = "BPGHS"
+			args.stats_out = "PGHS"
 		if args.m_grid is None:
 			args.m_grid = "20,30"
-	if args.lambda1_range is not None and args.lambda2_range is not None and args.kfold > 1:
+	if args.lambda1_grid is not None and args.lambda2_grid is not None and args.kfold > 1:
 		raise Exception("Cannot use --kfold option while running in grid search mode.")
 	single_lambda_pair = False
 	#Convert single run to 1x1 grid run
-	if args.lambda1_range is None and args.lambda2_range is None:
-		args.lambda1_range = "{},{},{}".format(args.lambda1, args.lambda1 + 0.00001, 0.00002)
-		args.lambda2_range = "{},{},{}".format(args.lambda2, args.lambda2 + 0.00001, 0.00002)
+	if args.lambda1_grid is None and args.lambda2_grid is None:
+		args.lambda1_grid = "{},{},{}".format(args.lambda1, args.lambda1 + 0.00001, 0.00002)
+		args.lambda2_grid = "{},{},{}".format(args.lambda2, args.lambda2 + 0.00001, 0.00002)
 		single_lambda_pair = True
 	### Convert new parameter names to old ###
 	args.slep_sample_balance = False
@@ -463,13 +479,13 @@ if __name__ == '__main__':
 	elif args.class_bal == "down":
 		args.downsample_balance = True
 	elif args.class_bal == "phylo":
-		args.smart_sampling = 2
+		args.smart_sampling = 3
 	elif args.class_bal == "phylo_1":
 		args.smart_sampling = 1
 	elif args.class_bal == "phylo_2":
-		args.smart_sampling = 3
-	args.grid_z = args.lambda1_range
-	args.grid_y = args.lambda2_range
+		args.smart_sampling = 2
+	args.grid_z = args.lambda1_grid
+	args.grid_y = args.lambda2_grid
 	args.auto_name_nodes = False
 	if args.gen_clade_list is not None:
 		args.auto_name_nodes = True

@@ -377,6 +377,10 @@ def generate_hypothesis_set(args):
 	responses = {}
 	if response_filename is None:
 		tree = Phylo.parse(newick_filename, 'newick').__next__()
+		tree_tbl = tree.total_branch_length()
+		if smart_sampling is not None and tree_tbl == 0:
+			smart_sampling = 1
+			print("Warning: provided tree does not contain branch lengths, smart sampling will select only/entire sister clade(s) as negative set(s).")
 		taxa_list = [x.name for x in tree.get_terminals()]
 		if cladesize_cutoff_upper is None:
 			cladesize_cutoff_upper = len(taxa_list)
@@ -407,7 +411,6 @@ def generate_hypothesis_set(args):
 						nodes[x].get_terminals()) < len(taxa_list)]
 		# print(nodelist)
 		# print(tree)
-		distance_matrix = {t1: {t2: tree.distance(t1, t2) for t2 in taxa_list} for t1 in taxa_list}
 		for nodename in nodelist:
 			if smart_sampling is None:
 				responses[nodename] = {x: -1 for x in taxa_list}
@@ -431,23 +434,24 @@ def generate_hypothesis_set(args):
 						if responses[nodename][cousin.name] == 0:
 							responses[nodename][cousin.name] = -1
 				response_sum = sum(responses[nodename].values())
-				if response_sum < 0.1 * len(nodes[nodename].get_terminals()):
-					temp_distance = copy.deepcopy(distance_matrix)
+				if tree_tbl > 0 and response_sum <= -1:
 					negative_set = [key for key in responses[nodename].keys() if responses[nodename][key] == -1]
 					for i in range(response_sum, 0):
 						#get minimum pair distance from matrix
 						#print(negative_set)
 						#print(temp_distance.keys())
-						minimum_distance = min([min([temp_distance[t1][t2] for t1 in negative_set if t1 != t2]) for t2 in negative_set])
+						#minimum_distance = min([min([temp_distance[t1][t2] for t1 in negative_set if t1 != t2]) for t2 in negative_set])
+						min_length = min([nodes[negative_taxa].branch_length for negative_taxa in negative_set])
 						min_taxa = set()
-						[[min_taxa.add(t1) for t1 in negative_set if temp_distance[t1][t2] == minimum_distance] for t2 in negative_set]
+						#[[min_taxa.add(t1) for t1 in negative_set if temp_distance[t1][t2] == minimum_distance] for t2 in negative_set]
+						[min_taxa.add(t1) for t1 in negative_set if nodes[t1].branch_length == min_length]
 						min_taxa = list(min_taxa)
-						#print(min_taxa)
-						random.shuffle(min_taxa)
-						#randomly delete half of pair
-						#print(min_taxa[0])
-						responses[nodename][min_taxa[0]] = 0
-						negative_set.remove(min_taxa[0])
+						# Delete the species in min_taxa that occurs first on the tree, assuming tree.get_terminals() is deterministically ordered
+						for taxa in taxa_list:
+							if taxa in min_taxa:
+								responses[nodename][taxa] = 0
+								negative_set.remove(taxa)
+								break
 			elif smart_sampling == 2:
 				# print(nodename)
 				responses[nodename] = {x: 0 for x in taxa_list}
@@ -455,7 +459,8 @@ def generate_hypothesis_set(args):
 					responses[nodename][terminal.name] = 1
 				target = nodes[nodename]
 				response_sum = sum(responses[nodename].values())
-				while response_sum > 0.1 * len(nodes[nodename].get_terminals()):
+				# while response_sum > 0.1 * len(nodes[nodename].get_terminals()):
+				while response_sum > 0:
 					try:
 						parent = tree.get_path(target)[-2]
 						for cousin in parent.get_terminals():
@@ -463,6 +468,19 @@ def generate_hypothesis_set(args):
 								responses[nodename][cousin.name] = -1
 						response_sum = sum(responses[nodename].values())
 						target = parent
+						if response_sum < 0.1 * len(nodes[nodename].get_terminals()):
+							try:
+								parent = tree.get_path(target)[-2]
+							except:
+								parent = tree.root
+							next_sum = 0
+							for cousin in parent.get_terminals():
+								if responses[nodename][cousin.name] != 1:
+									next_sum -= 1
+								else:
+									next_sum += 1
+							if abs(next_sum) > response_sum * 4:
+								response_sum = 0
 					except:
 						parent = tree.root
 						for cousin in parent.get_terminals():
@@ -474,42 +492,43 @@ def generate_hypothesis_set(args):
 				response_sum = sum(responses[nodename].values())
 #				if response_sum < 0.1 * len(nodes[nodename].get_terminals()):
 				if response_sum < 0:
-					temp_distance = copy.deepcopy(distance_matrix)
 					negative_set = [key for key in responses[nodename].keys() if responses[nodename][key] == -1]
 					for i in range(response_sum, 0):
 						#get minimum pair distance from matrix
 						#print(negative_set)
 						#print(temp_distance.keys())
-						minimum_distance = min([min([temp_distance[t1][t2] for t1 in negative_set if t1 != t2]) for t2 in negative_set])
+						#minimum_distance = min([min([temp_distance[t1][t2] for t1 in negative_set if t1 != t2]) for t2 in negative_set])
 						min_length = min([nodes[negative_taxa].branch_length for negative_taxa in negative_set])
 						min_taxa = set()
 						#[[min_taxa.add(t1) for t1 in negative_set if temp_distance[t1][t2] == minimum_distance] for t2 in negative_set]
 						[min_taxa.add(t1) for t1 in negative_set if nodes[t1].branch_length == min_length]
 						min_taxa = list(min_taxa)
-						random.shuffle(min_taxa)
-						#randomly delete half of pair
-						responses[nodename][min_taxa[0]] = 0
-						negative_set.remove(min_taxa[0])
+						# Delete the species in min_taxa that occurs first on the tree, assuming tree.get_terminals() is deterministically ordered
+						for taxa in taxa_list:
+							if taxa in min_taxa:
+								responses[nodename][taxa] = 0
+								negative_set.remove(taxa)
+								break
 				response_sum = sum(responses[nodename].values())
 #				elif response_sum > 0.1 * len(nodes[nodename].get_terminals()):
 				if response_sum > 0:
-					temp_distance = copy.deepcopy(distance_matrix)
-#					negative_set = [key for key in responses[nodename].keys() if responses[nodename][key] == -1]
 					positive_set = [key for key in responses[nodename].keys() if responses[nodename][key] == 1]
 					for i in range(0, response_sum):
 						#get minimum pair distance from matrix
 						#print(negative_set)
 						#print(temp_distance.keys())
-						minimum_distance = min([min([temp_distance[t1][t2] for t1 in positive_set if t1 != t2]) for t2 in positive_set])
+						#minimum_distance = min([min([temp_distance[t1][t2] for t1 in positive_set if t1 != t2]) for t2 in positive_set])
+						min_length = min([nodes[positive_taxa].branch_length for positive_taxa in positive_set])
 						min_taxa = set()
-						[[min_taxa.add(t1) for t1 in positive_set if temp_distance[t1][t2] == minimum_distance] for t2 in positive_set]
+						#[[min_taxa.add(t1) for t1 in positive_set if temp_distance[t1][t2] == minimum_distance] for t2 in positive_set]
+						[min_taxa.add(t1) for t1 in positive_set if nodes[t1].branch_length == min_length]
 						min_taxa = list(min_taxa)
-						#print(min_taxa)
-						random.shuffle(min_taxa)
-						#randomly delete half of pair
-						#print(min_taxa[0])
-						responses[nodename][min_taxa[0]] = 0
-						positive_set.remove(min_taxa[0])
+						# Delete the species in min_taxa that occurs first on the tree, assuming tree.get_terminals() is deterministically ordered
+						for taxa in taxa_list:
+							if taxa in min_taxa:
+								responses[nodename][taxa] = 0
+								positive_set.remove(taxa)
+								break
 			elif smart_sampling == 3:
 				# print(nodename)
 				responses[nodename] = {x: 0 for x in taxa_list}
@@ -517,7 +536,7 @@ def generate_hypothesis_set(args):
 					responses[nodename][terminal.name] = 1
 				target = nodes[nodename]
 				response_sum = sum(responses[nodename].values())
-				while response_sum > 0.1 * len(nodes[nodename].get_terminals()):
+				while response_sum > 0:
 					try:
 						parent = tree.get_path(target)[-2]
 						for cousin in parent.get_terminals():
@@ -525,6 +544,19 @@ def generate_hypothesis_set(args):
 								responses[nodename][cousin.name] = -1
 						response_sum = sum(responses[nodename].values())
 						target = parent
+						if response_sum < 0.1 * len(nodes[nodename].get_terminals()):
+							try:
+								parent = tree.get_path(target)[-2]
+							except:
+								parent = tree.root
+							next_sum = 0
+							for cousin in parent.get_terminals():
+								if responses[nodename][cousin.name] != 1:
+									next_sum -= 1
+								else:
+									next_sum += 1
+							if abs(next_sum) > response_sum * 4:
+								response_sum = 0
 					except:
 						parent = tree.root
 						for cousin in parent.get_terminals():
@@ -534,23 +566,24 @@ def generate_hypothesis_set(args):
 					if len(taxa_list) < 2.0 * len(nodes[nodename].get_terminals()):
 						pass
 				response_sum = sum(responses[nodename].values())
-				if response_sum < 0.1 * len(nodes[nodename].get_terminals()):
-					temp_distance = copy.deepcopy(distance_matrix)
+				if response_sum <= -1:
 					negative_set = [key for key in responses[nodename].keys() if responses[nodename][key] == -1]
 					for i in range(response_sum, 0):
 						#get minimum pair distance from matrix
 						#print(negative_set)
 						#print(temp_distance.keys())
-						minimum_distance = min([min([temp_distance[t1][t2] for t1 in negative_set if t1 != t2]) for t2 in negative_set])
+						#minimum_distance = min([min([temp_distance[t1][t2] for t1 in negative_set if t1 != t2]) for t2 in negative_set])
+						min_length = min([nodes[negative_taxa].branch_length for negative_taxa in negative_set])
 						min_taxa = set()
-						[[min_taxa.add(t1) for t1 in negative_set if temp_distance[t1][t2] == minimum_distance] for t2 in negative_set]
+						#[[min_taxa.add(t1) for t1 in negative_set if temp_distance[t1][t2] == minimum_distance] for t2 in negative_set]
+						[min_taxa.add(t1) for t1 in negative_set if nodes[t1].branch_length == min_length]
 						min_taxa = list(min_taxa)
-						#print(min_taxa)
-						random.shuffle(min_taxa)
-						#randomly delete half of pair
-						#print(min_taxa[0])
-						responses[nodename][min_taxa[0]] = 0
-						negative_set.remove(min_taxa[0])
+						# Delete the species in min_taxa that occurs first on the tree, assuming tree.get_terminals() is deterministically ordered
+						for taxa in taxa_list:
+							if taxa in min_taxa:
+								responses[nodename][taxa] = 0
+								negative_set.remove(taxa)
+								break
 	else:
 		with open(response_filename, 'r') as file:
 			basename = os.path.splitext(os.path.basename(response_filename))[0]
@@ -603,10 +636,10 @@ def generate_hypothesis_set(args):
 						for line in base_opts_file:
 							opts_file.write(line)
 				# ratio = sum([1.0 for x in responses[nodename].values() if x == 1])/sum([1.0 for x in responses[nodename].values() if x == -1])
-				opts_file.write("{}_{}_sweights.txt\n".format(nodename, args.output))
+				opts_file.write("sWeight\t{}_{}_sweights.txt\n".format(nodename, args.output))
 				with open("{}_{}_sweights.txt".format(nodename, args.output), 'w') as sweights_file:
-					sweights_file.write("{}\n".format(sum([1.0 for x in responses[nodename].values() if int(x) == 1])/sum([1.0 for x in responses[nodename].values() if int(x) == -1])))
 					sweights_file.write("{}\n".format(1.0))
+					sweights_file.write("{}\n".format(sum([1.0 for x in responses[nodename].values() if int(x) == 1])/sum([1.0 for x in responses[nodename].values() if int(x) == -1])))
 		else:
 			slep_opts_file_list += [args.slep_opts]
 	return hypothesis_file_list, slep_opts_file_list

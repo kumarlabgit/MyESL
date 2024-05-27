@@ -121,20 +121,29 @@ def main(predictions_table, lead_cols=4, response_idx=2, prediction_idx=3, outpu
 		header = header[1:lead_cols] + [val[2] for val in ssq_scores[0:gene_limit]]
 
 	# Sort rows by expit of predicted value
-	expit = [1/(1 + math.exp(-x)) for x in data[:, 1]]
-	pr = [(x - 0.5)/(max(expit) - 0.5) for x in expit]
-	pr = [x if x > 0 else 0 for x in pr]
-	sorted_rows = list(zip(range(0, num_rows), pr, data[:, 0], [val*-1 for val in pr]))
+	pr = list(zip([1/(1 + math.exp(-x)) for x in data[:, 1]], data[:, 0]))
+	max_pr = max([val[0] for val in pr if val[1] > 0])
+	min_pr = min([val[0] for val in pr if val[1] < 0])
+	scp = []
+	for val in pr:
+		if val[1] > 0:
+			scp = scp + [(val[0] - 0.5)/(max_pr - 0.5)]
+		if val[1] < 0:
+			scp = scp + [(val[0] - 0.5)/(min_pr - 0.5)]
+	# scp = [(x - 0.5)/(max(pr) - 0.5) for x in pr]
+	# scp = [x if x > 0 else 0 for x in scp]
+	sorted_rows = list(zip(range(0, num_rows), scp, data[:, 0], [val[0]*val[1] for val in list(zip(scp, data[:, 0]))]))
 	if m_grid:
-		sorted_rows.sort(key=lambda tup: (tup[2], tup[3]), reverse=True)
+		sorted_rows.sort(key=lambda tup: (tup[2], -tup[3]), reverse=True)
 	else:
-		sorted_rows.sort(key=lambda tup: (tup[2], tup[1]), reverse=True)
+		sorted_rows.sort(key=lambda tup: (tup[2], tup[3]), reverse=True)
 	data = data[[val[0] for val in sorted_rows]]
-	with open(predictions_table.replace("gene_predictions", "SPS_SPP").replace("GCS_median", "SPS_SPP_median"), 'w') as sps_file:
-		sps_file.write("seq_id\tresponse\tSPS\tSPP\n")
-		for row in zip([seqid_list[sorted_row[0]] for sorted_row in sorted_rows], data[:,0], data[:,1], [sorted_row[1] for sorted_row in sorted_rows]):
-			sps_file.write("{}\n".format('\t'.join([str(val) for val in row])))
-	seqid_list = ["{} ({:0.2f})".format((val)[0], val[1]) for val in zip(seqid_list, pr)]
+	if predictions_table.replace("gene_predictions", "SPS_SPP").replace("GCS_median", "SPS_SPP_median") != predictions_table:
+		with open(predictions_table.replace("gene_predictions", "SPS_SPP").replace("GCS_median", "SPS_SPP_median"), 'w') as sps_file:
+			sps_file.write("seq_id\tresponse\tSPS\tSPP\n")
+			for row in zip([seqid_list[sorted_row[0]] for sorted_row in sorted_rows], data[:,0], data[:,1], [sorted_row[1] for sorted_row in sorted_rows]):
+				sps_file.write("{}\n".format('\t'.join([str(val) for val in row])))
+	seqid_list = ["{} ({:0.2f})".format((val)[0], val[1]) for val in zip(seqid_list, scp)]
 
 
 	# temp1 = list(range(lead_cols-1, len(data[0])))
@@ -172,7 +181,7 @@ def main(predictions_table, lead_cols=4, response_idx=2, prediction_idx=3, outpu
 	cmap.set_bad(color='grey')
 	# Apply color map to first three columns, and then separately to the rest of the columns
 	if m_grid:
-		max_abs_val = max([abs(data.max()), abs(data.min())])
+		max_abs_val = max([abs(np.nanmax(data)), abs(np.nanmin(data))])
 		ax.imshow(data[:, :], cmap=cmap, norm=TwoSlopeNorm(0, -max_abs_val, max_abs_val), extent=(0, num_cols * xtick_width, num_rows * ytick_width, 0))
 	else:
 		# ax.imshow(data[:, 0:3], cmap=cmap, norm=TwoSlopeNorm(0), extent=(0, (lead_cols - 1) * xtick_width, num_rows * ytick_width, 0))
@@ -180,7 +189,7 @@ def main(predictions_table, lead_cols=4, response_idx=2, prediction_idx=3, outpu
 		#for i in range(0, lead_cols-1):
 		for i in range(0, 2):
 			ax.imshow(data[:, i:i+1], cmap=cmap, norm=TwoSlopeNorm(0), extent=(i*xtick_width, (i+1) * xtick_width, num_rows * ytick_width, 0))
-		max_abs_val = max([abs(data[:, lead_cols-1:].max()), abs(data[:, lead_cols-1:].min())])
+		max_abs_val = max([abs(np.nanmax(data[:, lead_cols - 1:])), abs(np.nanmin(data[:, lead_cols - 1:]))])
 		ax.imshow(data[:, lead_cols-1:], cmap=cmap, norm=TwoSlopeNorm(0, -max_abs_val, max_abs_val), extent=((lead_cols - 1)*xtick_width, num_cols * xtick_width, num_rows * ytick_width, 0))
 	ax.set_xticks(np.arange(0, num_cols * xtick_width, xtick_width))
 	ax.set_xticklabels(header, rotation=90, ha='left', size=label_size)
