@@ -896,7 +896,7 @@ def run_esl_grid(features_filename_list, groups_filename_list, response_filename
 		if method in ["overlapping_sg_lasso_leastr", "overlapping_sg_lasso_logisticr"]:
 			esl_cmd = esl_cmd + "*-g*{}".format(field_filename)
 		esl_cmd = esl_cmd + "*-l*{}".format(lambda_list_filename)
-		if args.grid_gene_threshold:
+		if args.grid_gene_threshold > 0:
 			esl_cmd = esl_cmd + "*-c*{}".format(args.grid_gene_threshold)
 		esl_cmd = esl_cmd + "*--model_format*flat"
 		print(esl_cmd.replace("*"," "))
@@ -934,7 +934,7 @@ def process_grid_weights(weights_file_list, hypothesis_file_list, groups_filenam
 			# total_significance = generate_mapped_weights_file(weights_filename, groups_filename.replace("group_indices_", "feature_mapping_"))
 			if os.path.exists(weights_filename):
 				HSS[hypothesis_filename] = HSS.get(hypothesis_filename, 0) + process_single_grid_weight(weights_filename, hypothesis_filename, groups_filename, features_filename, outname, gene_list, missing_seqs, group_list, features, args)
-			elif args.grid_gene_threshold is not None:
+			elif args.grid_gene_threshold > 0:
 				print("No results file detected, most likely due to grid_gene_threshold: {}".format(weights_filename))
 				missing_results.append(weights_filename)
 			else:
@@ -975,7 +975,7 @@ def process_sparse_grid_weights(weights_file_list, hypothesis_file_list, groups_
 			if os.path.exists(weights_filename):
 #				HSS[hypothesis_filename] = HSS.get(hypothesis_filename, 0) + process_single_grid_weight(weights_filename, hypothesis_filename, groups_filename, features_filename, outname, gene_list, missing_seqs, group_list, features, args)
 				HSS[hypothesis_filename] = HSS.get(hypothesis_filename, 0) + process_sparse_single_grid_weight(weights_filename, hypothesis_filename, groups_filename, outname, missing_seqs, aln_lib, args)
-			elif args.grid_gene_threshold is not None:
+			elif args.grid_gene_threshold > 0:
 				print("No results file detected, most likely due to grid_gene_threshold: {}".format(weights_filename))
 				missing_results.append(weights_filename)
 			else:
