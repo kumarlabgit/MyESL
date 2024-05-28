@@ -89,7 +89,7 @@ Users can also specify other options in MyESL for processing the input data, bui
 
 --lambda2 <float>                    : The gene sparsity parameter ranges from 0 to 1, and the default is 0.1 when not specified. It is required to build a single-clade model.
 
---lambda1_grid <min,max,step>        : This option allows users to set the range for the site sparsity parameter. The site sparsity grid is defined by a string of float numbers min, max, and step_size, which range from 0 to 1.
+--lambda1_range <min,max,step>        : This option allows users to set the range for the site sparsity parameter. The site sparsity grid is defined by a string of float numbers min, max, and step_size, which range from 0 to 1.
                                        For example, --lambda1_grid 0.1,0.9,0.1. This option must be used with --lambda2_grid.  
 
 --lambda2_grid <min,max,step>        : This option allows users to set the range for the group sparsity parameter. The group sparsity grid is defined by a string of float numbers min, max, and step_size, which range from 0 to 1.
