@@ -239,9 +239,9 @@ def apply_ESL_model(aln_list, aln_lib, model_file, hypothesis_file, groups_filen
 				prediction += weighted_group_sums[group].get(seq_id, 0)
 			#for i in range(0, len(gene_sums)):
 			for group in group_list:
-				if sum([1 for x in group.split(",") if (seq_id, x) in missing_seqs]) == len(group):
+				if sum([1 for x in group.split(",") if (seq_id, x) in missing_seqs]) == len(group.split(",")):
 					#gene_sums[i] = numpy.nan
-					weighted_group_sums[group] = numpy.nan
+					weighted_group_sums[group][seq_id] = numpy.nan
 			file.write("{}\t{}\t{}\t{}\t{}\n".format(seq_id, response[seq_id], prediction, model["Intercept"],
 													 "\t".join([str(weighted_group_sums[group].get(seq_id, numpy.nan)) for group in group_list])))
 	if "gene_predictions_xval" not in output_filename:
