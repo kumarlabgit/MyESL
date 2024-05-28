@@ -389,7 +389,7 @@ if __name__ == '__main__':
 	parser.add_argument("--grid_acc_cutoff", help="Accuracy cutoff when selecting models to aggregate.", type=float, default=0.0)
 	parser.add_argument("--grid_summary_only", help="Skip generating graphics for individual runs/models and remove individual model files.", action='store_true', default=False)
 	#parser.add_argument("--grid_gene_threshold", help="Stop increasing L2 when model selects this many genes or fewer.", type=int, default=None)
-	parser.add_argument("--min_groups", help="Stop increasing L2 when model selects this many genes or fewer.", type=int, default=0)
+	parser.add_argument("--min_groups", help="Stop increasing L2 when model selects this many genes or fewer.", type=int, default=-1)
 	parser.add_argument("--no_group_penalty", help="Perform mono-level optimization, ignoring group level sparsity penalties.",
 						action='store_true', default=False)
 	parser.add_argument("-o", "--output", help="Output directory.", type=str, default="output")
@@ -456,6 +456,8 @@ if __name__ == '__main__':
 			args.stats_out = "PGHS"
 		if args.m_grid is None:
 			args.m_grid = "20,30"
+		if args.min_groups < 0:
+			args.min_groups = 3
 	if args.lambda1_grid is not None and args.lambda2_grid is not None and args.kfold > 1:
 		raise Exception("Cannot use --kfold option while running in grid search mode.")
 	single_lambda_pair = False
