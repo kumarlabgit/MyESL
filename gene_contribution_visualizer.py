@@ -109,13 +109,18 @@ def main(predictions_table, lead_cols=4, response_idx=2, prediction_idx=3, outpu
 	sum_scores.sort(key=lambda tup: tup[1], reverse=True)
 	ingroup_data = data[data[:, 0] == 1.0]
 	# Mean positive GSC scores
-	mpgsc_scores = list(zip(range(lead_cols-1, num_cols), [np.mean([x for x in np.nan_to_num(gene_col) if x > 0] if len([x for x in np.nan_to_num(gene_col) if x > 0]) > 0 else [0]) for gene_col in ingroup_data.transpose()[lead_cols-1:]], header[lead_cols:]))
-	mpgsc_scores.sort(key=lambda tup: tup[1], reverse=True)
+	# mpgsc_scores = list(zip(range(lead_cols-1, num_cols), [np.mean([x for x in np.nan_to_num(gene_col) if x > 0] if len([x for x in np.nan_to_num(gene_col) if x > 0]) > 0 else [0]) for gene_col in ingroup_data.transpose()[lead_cols-1:]], header[lead_cols:]))
+	# mpgsc_scores.sort(key=lambda tup: tup[1], reverse=True)
+	# Aboslute focal GSC scores
+	afgsc_scores = list(zip(range(lead_cols-1, num_cols), [np.mean([abs(x) for x in np.nan_to_num(gene_col)]) for gene_col in ingroup_data.transpose()[lead_cols-1:]], header[lead_cols:]))
+	afgsc_scores.sort(key=lambda tup: tup[1], reverse=True)
 
 
 	if m_grid:
-		data = data[:, list(range(0, lead_cols - 1)) + [val[0] for val in mpgsc_scores[0:gene_limit]]]
-		header = [val[2] for val in mpgsc_scores[0:gene_limit]]
+		# data = data[:, list(range(0, lead_cols - 1)) + [val[0] for val in mpgsc_scores[0:gene_limit]]]
+		# header = [val[2] for val in mpgsc_scores[0:gene_limit]]
+		data = data[:, list(range(0, lead_cols - 1)) + [val[0] for val in afgsc_scores[0:gene_limit]]]
+		header = [val[2] for val in afgsc_scores[0:gene_limit]]
 	else:
 		data = data[:, list(range(0, lead_cols - 1)) + [val[0] for val in ssq_scores[0:gene_limit]]]
 		header = header[1:lead_cols] + [val[2] for val in ssq_scores[0:gene_limit]]
