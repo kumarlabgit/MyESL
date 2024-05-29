@@ -71,7 +71,7 @@ alignment_list.txt                       : A text file contains a list of paths 
 --tree phylogenetic_tree.nwk             : A phylogenetic tree in newick format with a node ID to construct a hypothesis for the clade of interest.
                                            The hypothesis can also be specified with a separate file using the --classes parameter.
                                            It is highly recommended that the number of species in the clade be equal to or greater than those outside of the clade.
-                                           It is also recommended to use the smart sampling option (—-balancing) when the number of species inside the clade is greater than the number outside the clade.
+                                           It is also recommended to use the smart sampling option (â€”-balancing) when the number of species inside the clade is greater than the number outside the clade.
 OR
 
 --classes phylogenetic_hypothesis.txt   : Requires a text file containing a user-defined hypothesis. It has two columns, which are tab-separated. The first column contains species names, and the second column contains the response value for the 
@@ -92,16 +92,16 @@ DrPhylo outputs a model grid (```M-grid```) and a text file in a matrix format c
 
 ```
 
---lamda1_range               : This option allows users to set the range for the site sparsity parameter. The site sparsity grid is defined by a string of float numbers min, max, step_size which range from 0 to 1.
+--lamda1_grid                : This option allows users to set the range for the site sparsity parameter. The site sparsity grid is defined by a string of float numbers min, max, step_size which range from 0 to 1.
                                For example, --lamda1_range 0.1, 0.9, 0.1. This option must be used with --lamda2_range.  
 
---lamda2_range               : This option allows users to set the range for the group sparsity parameter. The group sparsity grid is defined by a string of float numbers min, max, step_size which range from 0 to 1.
+--lamda2_grid                : This option allows users to set the range for the group sparsity parameter. The group sparsity grid is defined by a string of float numbers min, max, step_size which range from 0 to 1.
                                For example, --lamda2_range 0.1, 0.9, 0.1. This option must be used with --lamda1_range. 
 
 --min_groups                 : This option allows users to set the minimum number of genes included in the multi-gene ESL models and helps early stopping in the grid search over the sparsity parameter space.
                                It takes a value greater than zero (0) and builds models containing more or equal numbers of groups in the model.
 
---balancing                  : DrPhylo also performs class balancing, a common practice in classification analysis of supervised machine learning. Class balancing helps to make a balance between the number of species inside and outside the focal clade of 
+--class_bal                  : DrPhylo also performs class balancing, a common practice in classification analysis of supervised machine learning. Class balancing helps to make a balance between the number of species inside and outside the focal clade of 
                                interest. Class balancing in DrPhylo is performed by phylogenetic aware sampling <phylo> when the phylogenetic hypothesis is provided by the "--tree" option. DrPhylo also makes a balance between classes by using inverse weights using
                                the option <weight>. 
 --output                     : The name of the output directory where all results from DrPhylo analysis will be stored. The program creates this directory automatically. 
@@ -205,4 +205,4 @@ To perform DrPhylo analysis, get the ESL package using the following on the comm
 If you use DrPhylo in your research, please cite our articles:
 
 1. Sharma, S. & Kumar, S. (2024). Discovering fragile clades and causal sequences in phylogenomics by evolutionary sparse learning. (In review)
-2. Kumar, S. and Sharma, S (2021). Evolutionary Sparse Learning for Phylogenomics, Molecular Biology and Evolution, Volume 38, Issue 11, November 2021, Pages 4674–4682. 
+2. Kumar, S. and Sharma, S (2021). Evolutionary Sparse Learning for Phylogenomics, Molecular Biology and Evolution, Volume 38, Issue 11, November 2021, Pages 4674â€“4682. 
