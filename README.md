@@ -124,7 +124,7 @@ DrPhylo analysis for building clade models for two labeled clades, producing a r
 <br />
 
 ```
-MyESL.exe --DrPhylo sample_files/angiosperm_100_sample_alns.txt --tree sample_files/ESL_test.nwk --output sample_tree_output
+MyESL.exe sample_files/angiosperm_100_sample_alns.txt --tree sample_files/ESL_test.nwk --DrPhylo --output sample_tree_output  
 
 ```
 <br />
@@ -133,7 +133,7 @@ DrPhylo analysis using a user-defined hypothesis, producing a single clade model
 <br />
 
 ```
-MyESL.exe --DrPhylo sample_files/angiosperm_100_sample_alns.txt --output sample_tree_output --classes sample_files/test_pred.txt
+MyESL.exe sample_files/angiosperm_100_sample_alns.txt --classes sample_files/test_pred.txt --DrPhylo --output sample_tree_output 
 
 ```
 <br />
@@ -142,7 +142,7 @@ DrPhylo analysis for building an ensemble clade model for a user-defined hypothe
 <br />
 
 ```
-MyESL.exe --DrPhylo sample_files/angiosperm_100_sample_alns.txt --classes sample_files/test_pred.txt --lambda1_range 0.05,0.1,0.05 --lambda2_range 0.05,0.1,0.05 --output sample_grid2x2_output 
+MyESL.exe sample_files/angiosperm_100_sample_alns.txt --classes sample_files/test_pred.txt --DrPhylo --lambda1_grid 0.05,0.1,0.05 --lambda2_grid 0.05,0.1,0.05 --output sample_grid2x2_output 
 
 ```
 <br />
@@ -160,7 +160,7 @@ M-Grid_{clade_ID}.png : Grid representation of the ensemble clade model using *_
                                        The taxa with the lowest SCP will be at the top of the grid, and the lowest SCP for the clade is defined as the CP for the clade of interest. 
 
 ```
-Note: The `{clade}` will be replaced by the text file name when the `--classes` option is used for providing a user-defined phylogenetic hypothesis. 
+Note: The `{clade_ID}` will be replaced by the text file name when the `--classes` option is used for providing a user-defined phylogenetic hypothesis. In addition, DrPhylo generates summary files of Gene (GSS), Position (PSS), and Hypothesis (HSS) sparsity scores along with species prediction and probability score (SPS_SPP).
 
 ## Installation of MyESL into Python for DrPhylo analysis ##
 
