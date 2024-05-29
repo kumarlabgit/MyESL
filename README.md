@@ -48,11 +48,11 @@ After downloading, a user can perform DrPhylo analysis using the required inputs
 <br />
 
 ```
-MyESL.exe --DrPhylo alignment_list.txt  --tree phylogenetic_tree.nwk
+MyESL.exe alignment_list.txt  --tree phylogenetic_tree.nwk --DrPhylo
 
 OR
 
-MyESL.exe --DrPhylo alignment_list.txt  --classes phylogenetic_hypothesis.txt
+MyESL.exe alignment_list.txt  --classes phylogenetic_hypothesis.txt --DrPhylo
 ```
 <br />
 
