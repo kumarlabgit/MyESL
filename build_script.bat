@@ -10,10 +10,10 @@ mv preprocess.exe sg_lasso.exe sg_lasso_leastr.exe overlapping_sg_lasso_leastr.e
 cp *.dll ..\bin
 cp *.lib ..\bin
 cd ..
-pyinstaller ESL_pipeline.py
-pyinstaller ESL_model_apply.py
-mv dist\ESL_pipeline\_internal .
-mv dist\ESL_pipeline\ESL_pipeline.exe .
-mv dist\ESL_model_apply\ESL_model_apply.exe .
+pyinstaller MyESL.py
+pyinstaller MyESL_model_apply.py
+mv dist\MyESL\_internal .
+mv dist\MyESL\MyESL.exe .
+mv dist\MyESL_model_apply\MyESL_model_apply.exe .
 rm -rf build
 rm -rf dist
