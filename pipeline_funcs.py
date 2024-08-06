@@ -6,6 +6,7 @@ import time
 import random
 import shutil
 import numpy
+import psutil
 from numpy.lib import recfunctions as rfn
 import xml.etree.ElementTree as ET
 import multiprocessing
@@ -135,6 +136,18 @@ def read_fasta(filename):
 	return sequences
 
 
+def read_numeric(filename, delimiter='\t', header=False):
+	with open(filename, 'r') as file:
+		values = {}
+		for line in file:
+			if header:
+				header = False
+				continue
+			data = line.strip().split(delimiter)
+			values[data[0]] = [float(x) for x in data[1:]]
+	return values
+
+
 def parse_response_file(response_filename, species_list):
 	responses = {seq_id: None for seq_id in species_list}
 	seq_order = []
@@ -158,7 +171,7 @@ def parse_response_file(response_filename, species_list):
 	return sorted_responses, missing_seqids
 
 
-def extract_gene_sums(aln_list, aln_lib, model):
+def extract_gene_sums(aln_list, aln_lib, model, numeric=False):
 	gene_files = {}
 	gene_sums = {}
 	gene_signifcance_scores = {}
@@ -178,18 +191,44 @@ def extract_gene_sums(aln_list, aln_lib, model):
 			continue
 		gene_sums[gene] = {}
 		if gene not in aln_lib.keys():
-			aln_lib[gene] = read_fasta(gene_files[gene])
+			if numeric:
+				aln_lib[gene] = read_numeric(gene_files[gene])
+			else:
+				aln_lib[gene] = read_fasta(gene_files[gene])
 		for seq_id in aln_lib[gene].keys():
-			gene_sums[gene][seq_id] = sum([model[gene][pos].get(aln_lib[gene][seq_id][pos], 0) for pos in model[gene].keys()])
+			if numeric:
+				gene_sums[gene][seq_id] = sum([model[gene][pos] * aln_lib[gene][seq_id][pos] for pos in model[gene].keys()])
+			else:
+				gene_sums[gene][seq_id] = sum([model[gene][pos].get(aln_lib[gene][seq_id][pos], 0) for pos in model[gene].keys()])
 		# gene_signifcance_scores[gene] = sum([sum(model[gene][pos].values()) for pos in model[gene].keys()])
-		gene_signifcance_scores[gene] = sum([sum([abs(val) for val in pos.values()]) for pos in model[gene].values()])
+		if numeric:
+			gene_signifcance_scores[gene] = sum([abs(val) for val in model[gene].values()])
+		else:
+			gene_signifcance_scores[gene] = sum([sum([abs(val) for val in pos.values()]) for pos in model[gene].values()])
 	return gene_sums, gene_signifcance_scores
 
 
-def read_ESL_model(filename):
+def read_ESL_model(filename, numeric=False):
 	model = {}
 	last_gene = ""
 	last_pos = -1
+	if numeric:
+		with open(filename, 'r') as file:
+			for line in file:
+				data = line.strip().split("\t")
+				if data[0] == "Intercept":
+					model["Intercept"] = float(data[1])
+					continue
+				feature = data[0].split("_")
+				gene = "_".join(feature[0:-1])
+				pos = int(feature[-1])
+				weight = float(data[1])
+				if gene != last_gene:
+					model[gene] = {pos: weight}
+				else:
+					model[gene].update({pos: weight})
+				last_gene = gene
+		return model
 	with open(filename, 'r') as file:
 		for line in file:
 			data = line.strip().split("\t")
@@ -212,12 +251,12 @@ def read_ESL_model(filename):
 	return model
 
 
-def apply_ESL_model(aln_list, aln_lib, model_file, hypothesis_file, groups_filename, output_filename, missing_seqs):
+def apply_ESL_model(aln_list, aln_lib, model_file, hypothesis_file, groups_filename, output_filename, missing_seqs, numeric=False):
 	model_dir = os.path.dirname(model_file)
 #	model_basename = os.path.splitext(os.path.basename(hypothesis_file))[0].replace("_hypothesis", "").replace("_mapped_feature_weights", "")
 #	model = read_ESL_model(os.path.join(model_dir, model_basename + "_hypothesis_out_feature_weights.txt"))
-	model = read_ESL_model(model_file)
-	gene_sums, gene_significance_scores = extract_gene_sums(aln_list, aln_lib, model)
+	model = read_ESL_model(model_file, numeric=numeric)
+	gene_sums, gene_significance_scores = extract_gene_sums(aln_list, aln_lib, model, numeric=numeric)
 	species_list = set()
 	for gene in gene_sums.keys():
 		species_list.update(list(gene_sums[gene].keys()))
@@ -658,18 +697,25 @@ def split_path(path):
 
 def generate_input_matrices(alnlist_filename, hypothesis_filename_list, args):
 	output_basename = args.output
-	options = ""
+	options = "useCaching threads {}".format(args.threads)
 	modified_response = True
+	if not args.include_singletons:
+		options = "{} {}".format(options.strip(), "is")  # Note: "is" stands for /ignore/ singletons in the preprocessor.
 	if args.upsample_balance:
-		options = "{} {}".format(options.strip(),"ub")
+		options = "{} {}".format(options.strip(), "ub")
 		modified_response = True
 	elif args.downsample_balance:
-		options = "{} {}".format(options.strip(),"db")
+		options = "{} {}".format(options.strip(), "db")
 		modified_response = True
 	if args.fuzz_indels:
-		options = "{} {}".format(options.strip(),"fuzzIndels")
+		options = "{} {}".format(options.strip(), "fuzzIndels")
 	if args.bit_ct > 1:
 		options = "{} {} {}".format(options.strip(), "ct", args.bit_ct)
+	if args.data_type != "universal":
+		if args.data_type not in ["nucleotide", "protein", "molecular", "numeric"]:
+			raise Exception("Invalid data_type specified ({}), accepted values are: universal, molecular, protein, nucleotide, numeric.".format(data_type))
+		options = "{} {} {}".format(options.strip(), "dataType", args.data_type)
+	options = options.replace(" ", "*")
 	response_file_list = []
 	group_indices_file_list = []
 	features_file_list = []
@@ -755,7 +801,7 @@ def generate_input_matrices(alnlist_filename, hypothesis_filename_list, args):
 						shutil.rmtree(os.path.join(preprocess_cwd, output_basename))
 					else:
 						shutil.move(os.path.join(preprocess_cwd, output_basename), output_basename)
-				if True:
+				if args.data_type != "numeric":
 					position_stats = {}
 					#stat_keys = ["mic", "entropy"]
 					stat_keys = ["mic"]
@@ -859,6 +905,8 @@ def run_esl(features_filename_list, groups_filename_list, response_filename_list
 			esl_cmd = esl_cmd + "*-x*{}".format(response_filename.replace("response_", "").replace("hypothesis.txt", "xval_groups.txt"))
 		esl_cmd = esl_cmd + "*--model_format*flat"
 		print(esl_cmd.replace("*"," "))
+		if not args.disable_mc:
+			check_memory(features_filename, args.output)
 #		subprocess.call("touch {}".format(basename + "_out_feature_weights.xml"), stderr=subprocess.STDOUT, shell=True)
 		subprocess.call(esl_cmd.split("*"), stderr=subprocess.STDOUT)
 		weights_file_list.append(basename + "_out_feature_weights.txt")
@@ -907,6 +955,8 @@ def run_esl_grid(features_filename_list, groups_filename_list, response_filename
 					raise Exception("Processing skipped, but no model file detected at {}.".format(model_file))
 			print("All expected model files detected, skipping processing step...")
 		else:
+			if not args.disable_mc:
+				check_memory(features_filename, args.output)
 			subprocess.call(esl_cmd.split("*"), stderr=subprocess.STDOUT)
 		weights_file_list.append(["{}_out_feature_weights_{}_{}.txt".format(basename, lambda_val2label(val[0]), lambda_val2label(val[1])) for val in lambda_list])
 	return weights_file_list
@@ -955,7 +1005,7 @@ def process_single_grid_weight(weights_filename, hypothesis_filename, groups_fil
 	print("Time elapsed while generating gene prediction table: {}".format(datetime.now() - start))
 	start = datetime.now()
 	# total_significance = generate_mapped_weights_file(weights_filename, groups_filename.replace("group_indices_", "feature_mapping_"), model)
-	total_significance = generate_significance_scores(weights_filename.replace("_hypothesis", "").replace("_out_feature_weights.xml", "_mapped_feature_weights.txt"))
+	total_significance = generate_significance_scores(weights_filename.replace("_hypothesis", "").replace("_out_feature_weights.xml", "_mapped_feature_weights.txt"), numeric=numeric)
 	print("Time elapsed while generating mapped weights file: {}".format(datetime.now() - start))
 	if not args.preserve_xml:
 		os.remove(weights_filename)
@@ -992,13 +1042,16 @@ def process_sparse_grid_weights(weights_file_list, hypothesis_file_list, groups_
 def process_sparse_single_grid_weight(weights_filename, hypothesis_filename, groups_filename, outname, missing_seqs, aln_lib, args):
 #	start = datetime.now()
 #	model = xml_model_to_dict(weights_filename)
-	apply_ESL_model(args.aln_list, aln_lib, weights_filename, hypothesis_filename, groups_filename, outname, missing_seqs)
+	numeric = False
+	if args.data_type == "numeric":
+		numeric = True
+	apply_ESL_model(args.aln_list, aln_lib, weights_filename, hypothesis_filename, groups_filename, outname, missing_seqs, numeric=numeric)
 #	generate_gene_prediction_table(weights_filename, hypothesis_filename, groups_filename, features_filename, outname, gene_list, missing_seqs, group_list, model, features, groups_filename.replace("group_indices_", "field_"))
 #	print("Time elapsed while generating gene prediction table: {}".format(datetime.now() - start))
 #	start = datetime.now()
 	# total_significance = generate_mapped_weights_file(weights_filename, groups_filename.replace("group_indices_", "feature_mapping_"), model)
 	#total_significance = generate_significance_scores(weights_filename.replace("_hypothesis", "").replace("_out_feature_weights.", "_mapped_feature_weights."))
-	total_significance = generate_significance_scores(weights_filename, groups_filename)
+	total_significance = generate_significance_scores(weights_filename, groups_filename, numeric=numeric)
 #	print("Time elapsed while generating mapped weights file: {}".format(datetime.now() - start))
 #	if not args.preserve_xml:
 #		os.remove(weights_filename)
@@ -1010,9 +1063,12 @@ def process_sparse_weights(weights_file_list, hypothesis_file_list, groups_filen
 	aln_lib = {}
 	for (weights_filename, hypothesis_filename, groups_filename) in zip(weights_file_list, hypothesis_file_list, groups_filename_list):
 		outname = weights_filename.replace("_hypothesis", "").replace("_out_feature_weights.txt", "_gene_predictions.txt")
-		apply_ESL_model(aln_list, aln_lib, weights_filename, hypothesis_filename, groups_filename, outname, missing_seqs)
+		numeric = False
+		if args.data_type == "numeric":
+			numeric = True
+		apply_ESL_model(aln_list, aln_lib, weights_filename, hypothesis_filename, groups_filename, outname, missing_seqs, numeric=numeric)
 		# total_significance = generate_significance_scores(weights_filename.replace("_hypothesis", "").replace("_out_feature_weights.xml", "_mapped_feature_weights.txt"))
-		total_significance = generate_significance_scores(weights_filename, groups_filename)
+		total_significance = generate_significance_scores(weights_filename, groups_filename, numeric=numeric)
 		shutil.move(weights_filename.replace("_hypothesis_out_feature_weights", "_PSS"), args.output)
 		#os.remove(weights_filename)
 		shutil.move(weights_filename, os.path.join(os.path.dirname(groups_filename), weights_filename.replace("_hypothesis_out_feature_weights.xml", "_mapped_feature_weights.txt")))
@@ -1121,7 +1177,7 @@ def process_xval_weights(weights_file_list, hypothesis_file_list, groups_filenam
 			numpy.savetxt(file, numpy.vstack(xval_predictions), delimiter='	', fmt='%s')
 
 
-def generate_significance_scores(model_filename, groups_filename):
+def generate_significance_scores(model_filename, groups_filename, numeric=False):
 	# Read weights and feature mapping files
 	PSS = {}
 	posname_list = []
@@ -1135,6 +1191,12 @@ def generate_significance_scores(model_filename, groups_filename):
 			data = line.strip().split("\t")
 			if len(data) == 2:
 				feature_map[data[0]] = float(data[1])
+	if numeric:
+		with open(str(model_filename).replace("_hypothesis_out_feature_weights", "_PSS"), 'w') as file:
+			file.write("{}\t{}\n".format("Position Name", "PSS"))
+			for posname in feature_map.keys():
+				file.write("{}\t{}\n".format(posname, abs(feature_map[posname])))
+		return sum([abs(x) for x in feature_map.values()])
 	if os.path.exists(groups_filename.replace("group_indices_", "pos_stats_")):
 		with open(groups_filename.replace("group_indices_", "pos_stats_"), 'r') as file:
 			for line in file:
@@ -1204,4 +1266,23 @@ def generate_mapped_weights_file(weights_filename, feature_map_filename, model):
 				file.write("{}\t{}\n".format(posname, PSS[posname]))
 	# Return sum of all position significance scores
 	return sum(PSS.values())
+
+
+def check_memory(features_filename, output_name):
+	#stats_filename = features_filename.replace("feature_", "feature_stats_")
+	stats_filename = os.path.join(output_name, "feature_stats_{}.txt".format(output_name))
+	try:
+		stats = {}
+		with open(stats_filename, 'r') as stats_file:
+			for line in stats_file:
+				data = line.strip().split("\t")
+				stats[data[0]] = data[1]
+	except:
+		raise Exception("Problem opening feature stats file {}.".format(stats_filename))
+	available_mem = psutil.virtual_memory().available
+	feature_mem = round(4.2 * int(stats["Samples"]) * int(stats["Features"]))
+	if available_mem < feature_mem:
+		msg = "Exceeding available memory will severely degrade performance, if you're sure you want to try anyways, rerun MyESL with the --disable_mc flag."
+		raise Exception("Total size of {} in memory ({} bytes) would exceed available memory of {} bytes.\n{}".format(feature_filename, feature_mem, available_mem, msg))
+
 

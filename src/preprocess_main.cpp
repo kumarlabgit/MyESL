@@ -56,8 +56,6 @@ int main(int argc, char *argv[])
 
 	alnData* data = new alnData();
 
-	data->setDelimiter(",");
-
 	if (argc > 4)
 	{
 		for (int i = 3; i < argc; i++)
@@ -92,15 +90,19 @@ int main(int argc, char *argv[])
 			if (strcmp(argv[i], "useCaching") == 0)
 			{
 				data->setDiskCaching(true);
+				data->setCacheDir(basename);
 			}
 			if (strcmp(argv[i], "dataType") == 0)
 			{
 				data->setDataType(argv[i+1]);
-				cout << "Setting dataType to " << argv[i+1] << " alignment." << endl;
 			}
 			if (strcmp(argv[i], "useTabs") == 0)
 			{
 				data->setDelimiter("\t");
+			}
+			if (strcmp(argv[i], "threads") == 0)
+			{
+				data->setThreads(std::stoi(argv[i+1]));
 			}
 		}
 	}
@@ -113,6 +115,8 @@ int main(int argc, char *argv[])
 	data->generateMappingFile(basename);
 	cout << "Generating response file..." <<endl;
 	data->generateResponseFile(basename);
+	cout << "Generating feature stats file..." <<endl;
+	data->generateStatsFile(basename);
 	cout << "Generating feature file..." <<endl;
 	data->generateFeatureFile(basename);
 	cout << "Generating missing sequences list..." <<endl;

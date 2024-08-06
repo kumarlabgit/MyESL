@@ -379,6 +379,7 @@ if __name__ == '__main__':
 	# parser.add_argument("--downsample_balance", help="Balance positive and negative response sets by downsampling the overpopulated set.", action='store_true', default=False)
 	parser.add_argument("--class_bal", help="Sample balancing type:['weighted', 'up', 'down', 'phylo'(, 'phylo_1', 'phylo_2')]", type=str, default=None)
 	parser.add_argument("--preserve_inputs", help="Leave input files in place for inspection.", action='store_true', default=False)
+	parser.add_argument("--disable_mc", help="Disable available memory check.", action='store_true', default=False)
 	parser.add_argument("-z", "--lambda1", help="Feature sparsity parameter.", type=float, default=0.1)
 	parser.add_argument("-y", "--lambda2", help="Group sparsity parameter.", type=float, default=0.1)
 	#parser.add_argument("--grid_z", help="Grid search sparsity parameter interval specified as 'min,max,step_size'", type=str, default=None)
@@ -404,9 +405,12 @@ if __name__ == '__main__':
 	#parser.add_argument("--m_grid", help="Generate m-grid graphical output.", action='store_true', default=False)
 	parser.add_argument("--m_grid", help="Generate m-grid graphical output with display limited to <rows>,<cols>, e.g. \"--m_grid 10,20\" .", type=str, default=None)
 	parser.add_argument("--bit_ct", help="Ignore mutations observed fewer than N times.", type=int, default=1)
+	parser.add_argument("--include_singletons", help="Include singleton sites in analysis.", action='store_true', default=False)
 	parser.add_argument("--stats_out", help="<str[PGHS]*> Various single-character flags for output produced, consult README for more info.", type=str, default="")
 	parser.add_argument("--data_type", help="<Options are \"nucleotide\", \"protein\", \"molecular\", \"universal\". Consult documentation for detailed info.", type=str, default="universal")
 	parser.add_argument("--DrPhylo", help="Run Dr Phylo type analysis.", action='store_true', default=False)
+	parser.add_argument("--method", help="SGLasso type to use. Options are \"logistic\" or \"leastr\". Defaults to \"logistic\".", type=str, default="logistic")
+	parser.add_argument("--threads", help="Number of threads to use where applicable.", type=int, default=None)
 
 	## Deactivated options ##
 	# parser.add_argument("--skip_preprocessing", help="Assume preprocessing files have already been generated.", action='store_true', default=False)
@@ -416,11 +420,9 @@ if __name__ == '__main__':
 	# parser.add_argument("--ensemble_parts", help="Build gene-wise ensemble models, splitting the set of genes into N partitions for each run.", type=int, default=None)
 	# parser.add_argument("--ensemble_coverage", help="Number of ensemble models to build. Each gene will be included in this many individual models.", type=int, default=5)
 	# parser.add_argument("--sparsify", help="Iteratively increase sparsity until selected set of genes fits in one partition.", action='store_true', default=False)
-	# parser.add_argument("--method", help="SGLasso type to use. Options are \"logistic\", \"leastr\", or \"ol_leastr\". Defaults to \"leastr\".", type=str, default="logistic")
 	# parser.add_argument("--grid_threads", help="Number of threads to use when aggregating grid search results.", type=int, default=None)
 
 	args = parser.parse_args()
-	args.method = "logistic"
 
 	## Potentially load bearing cruft ##
 	args.skip_preprocessing = False
@@ -432,6 +434,16 @@ if __name__ == '__main__':
 	args.sparsify = False
 	args.grid_threads = None
 	## End cruft ##
+
+	if args.threads is None:
+		args.threads = os.cpu_count()
+		if args.threads is not None:
+			args.threads = math.floor(0.75 * args.threads)
+		else:
+			args.threads = 1
+	args.threads = max(1, args.threads)
+	if os.name == "posix":
+		args.threads = 1  # Multithreading currently causes an issue when static compiling with glibc
 
 	if args.classes is None and args.tree is None:
 		raise Exception("Must invoke one of --tree or --classes option.")

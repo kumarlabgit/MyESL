@@ -1,8 +1,4 @@
 #include "preprocess.hpp"
-#include <algorithm>
-#include <filesystem>
-#include <sstream>
-#include <random>
 
 using namespace std;
 
@@ -26,7 +22,6 @@ int randint(int min, int max)
 
 alnData::alnData()
 {
-	this->featureIndex = 1;
 	this->normalize = false;
 	this->useDiskCache = false;
 	this->validCharSets["nucleotide"] = "ATCGU";
@@ -48,7 +43,12 @@ void alnData::initialize(string speciesFile, string alnFileList)
 
 void alnData::setDelimiter(string delimiter)
 {
-	this->delimiter = delimiter;
+	this->outputDelimiter = delimiter;
+}
+
+void alnData::setCacheDir(string dirName)
+{
+	this->cacheDir = dirName;
 }
 
 void alnData::normalizeFeatures(bool normalize)
@@ -92,9 +92,26 @@ void alnData::setDataType(string dataType)
 	this->dataType = dataType;
 	if (dataType == "nucleotide" || dataType == "protein" || dataType == "molecular")
 	{
+		cout << "Setting dataType to " << dataType << " alignment." << endl;
 		this->caseSensitive = false;
 		this->validChars = this->validCharSets[dataType];
 	}
+	else if (dataType == "numeric")
+	{
+		cout << "Setting dataType to " << dataType << " table/matrix." << endl;
+		this->numericInput = true;
+	}
+	else if (dataType != "universal")
+	{
+		cout << "Unrecognized dataType " << dataType << ", defaulting to universal dataType setting." << endl;
+		this->dataType = "universal";
+	}
+
+}
+
+void alnData::setThreads(int threadCount)
+{
+	this->threads = threadCount;
 }
 
 void alnData::readTraits(string speciesFile)
@@ -103,7 +120,7 @@ void alnData::readTraits(string speciesFile)
 	ifstream speciesList (speciesFile);
 	if (speciesList.is_open())
 	{
-		string delimiter = "	";
+		char delimiter = this->inputDelimiter;
 		string species;
 		float trait;
 		while (getline(speciesList, speciesTrait))
@@ -216,6 +233,7 @@ void alnData::printTraits()
 	}
 }
 
+
 void alnData::processFastaFileList(string alnFileList)
 {
 	string fastaFileGroup, fastaFileName;
@@ -236,23 +254,106 @@ void alnData::processFastaFileList(string alnFileList)
 				if (this->geneGroupIndex.find(fastaFileName) == this->geneGroupIndex.end())
 				{
 					this->geneGroupIndex[fastaFileName] = this->geneGroupIndex.size();
-					this->readAln(fastaFileName);
+					if (!this->numericInput)
+					{
+						this->readAln(fastaFileName);
+					} else {
+						this->readTable(fastaFileName);
+					}
 					//fastaFileName.erase(fastaFileName.find(".fa"), string::npos);
 					//fastaFileName.erase(0, fastaFileName.find("/")+1);
 					std::filesystem::path fastaFilePath(fastaFileName);
 					//this->currentGene = fastaFileName;
 					this->currentGene = fastaFilePath.stem().string();
-					this->processAln();
-					this->seqs.clear();
+					if (!this->numericInput)
+					{
+						this->processAln();
+						this->seqs.clear();
+					} else {
+						this->processTable();
+						this->numericSeqs.clear();
+					}
 				}
 			}
 		}
 		fileList.close();
+		if (this->useDiskCache && this->cacheFeatureIndex > 1)
+		{
+			this->dumpFeatureCache();
+		}
 	} else {
 		throw std::invalid_argument("Could not open alignment list "+ alnFileList +" for reading.");
 	}
 }
 
+void alnData::readTable(string tableFileName)
+{
+	string line;
+	int seqlen = 0;
+	std::size_t found;
+	vector<string> tempSpecies;
+	tempSpecies = this->species;
+	ifstream tableFile (tableFileName);
+	if (tableFile.is_open())
+	{
+		cout << "Processing numeric file: " << tableFileName << "..." << endl;
+		string seqid = "";
+		vector<float> numericSeq;
+		vector<float> valList;
+		if (this->numericHeaders)
+		{
+			getline(tableFile,line);
+		}
+		while (getline(tableFile,line))
+		{
+			trim(line);
+			stringstream ss(line);
+			string segment;
+			getline(ss, seqid, this->inputDelimiter);
+			if (this->traits.find(seqid) != this->traits.end())
+			{
+				while(getline(ss, segment, this->inputDelimiter))
+				{
+					if (segment == "-" || segment == "?")
+					{
+						valList.push_back(0.0);
+					}
+					else
+					{
+						valList.push_back(stof(segment));
+					}
+				}
+				this->numericSeqs[seqid] = valList;
+				tempSpecies.erase(find(tempSpecies.begin(), tempSpecies.end(), seqid));
+				valList.clear();
+			}
+		}
+		tableFile.close();
+	}
+	else
+	{
+		cout << "Could not open rable file " << tableFileName << ", exiting..." << endl;
+		exit(1);
+	}
+	while (!tempSpecies.empty())
+	{
+		//If seqid is a duplication, set its sequence to the original
+		if ((tempSpecies.at(0).find("_pos_dup") != std::string::npos || tempSpecies.at(0).find("_neg_dup") != std::string::npos) && this->numericSeqs.find(tempSpecies.at(0).substr(0, found)) != this->numericSeqs.end())
+		{
+			found = tempSpecies.at(0).find("_dup") - 4;
+			//bool found = (std::find(my_list.begin(), my_list.end(), my_var) != my_list.end());
+			this->numericSeqs[tempSpecies.at(0)] = this->numericSeqs[tempSpecies.at(0).substr(0, found)];
+			tempSpecies.erase(tempSpecies.begin());
+		}
+		//Else set its sequence to all indels and add it to the missing seqs file
+		else
+		{
+			this->missingSeqs.push_back(tableFileName + "\t" + tempSpecies.at(0));
+			this->numericSeqs[tempSpecies.at(0)] = vector<float>(seqlen, 0);
+			tempSpecies.erase(tempSpecies.begin());
+		}
+	}
+}
 void alnData::readAln(string fastaFileName)
 {
 	auto isInvalidChar = [&](char c){return this->validChars.find(c) == std::string::npos;};
@@ -290,6 +391,7 @@ void alnData::readAln(string fastaFileName)
 					std::transform(line.begin(), line.end(), line.begin(), ::toupper);
 					std::replace_if(line.begin(), line.end(), isInvalidChar, '-');
 				}
+				std::replace(line.begin(), line.end(), '?', '-');
 				seq = seq + line;
 			}
 		}
@@ -330,12 +432,47 @@ void alnData::readAln(string fastaFileName)
 	}
 }
 
+void alnData::processTable()
+{
+	int seqLen = this->numericSeqs[this->species[1]].size();
+	int numSpecies = this->species.size();
+	int groupStartIndex = this->featureIndex;
+	string featureName;
+	set<float> values;
+	vector<float> feature;
+
+	for (int i = 0; i < seqLen; i++)
+	{
+		//check if site is constant
+		for (int j = 0; j < numSpecies; j++)
+		{
+			values.insert(this->numericSeqs[this->species[j]][i]);
+		}
+		if (values.size() < 2)
+		{
+			values.clear();
+			continue;
+		}
+		featureName = this->currentGene + "_" + to_string(i);
+		for (int k = 0; k < numSpecies; k++)
+		{
+			feature.push_back(this->numericSeqs[this->species[k]][i]);
+		}
+		this->featureMap[this->featureIndex] = featureName;
+		this->features[featureIndex] = feature;
+		this->featureIndex++;
+		values.clear();
+		feature.clear();
+	}
+	this->groupIndices.push_back({groupStartIndex,this->featureIndex-1});
+}
+
 void alnData::processAln()
 {
 	int seqLen = this->seqs[this->species[1]].size();
 	int numSpecies = this->species.size();
 	int groupStartIndex = this->featureIndex;
-	int cacheFeatureIndex = 1;
+//	int cacheFeatureIndex = 1;
 
 	for (int i = 0; i < seqLen; i++)
 	{
@@ -402,56 +539,190 @@ void alnData::processAln()
 					//If disk cache is being used, overwrite features starting from 1 for each gene
 					if (this->useDiskCache)
 					{
-						this->features[cacheFeatureIndex] = oneHot;
+						this->features[this->cacheFeatureIndex] = oneHot;
 					}
 					else
 					{
 						this->features[featureIndex] = oneHot;
 					}
 					this->featureIndex++;
-					cacheFeatureIndex++;
+					this->cacheFeatureIndex++;
 				}
 				baseIter++;
 			}
 		}
 	}
 	this->groupIndices.push_back({groupStartIndex,this->featureIndex-1});
-	if (this->useDiskCache)
+	if (this->useDiskCache && this->cacheFeatureIndex * this->featureSize * this->species.size() >= this->workingMemLimit)
 	{
-		string cacheFileName;
-		string cacheLineString;
-		ofstream cacheFile;
-		for (int i = 0; i < this->species.size(); i++)
-		{
-			vector<int> cacheSegment;
-			for (int j = 1; j < cacheFeatureIndex; j++)
-			{
-				cacheSegment.push_back(this->features[j][i]);
-			}
-			stringstream cacheLine;
-			copy(cacheSegment.begin(), cacheSegment.end(), ostream_iterator<int>(cacheLine, "	"));
-			cacheLineString = cacheLine.str();
-			cacheFileName = ".cache_" + this->species[i] + ".txt";
-			if (this->geneGroupIndex.size() == 1)
-			{
-				std::remove(cacheFileName.c_str());
-			}
-			else
-			{
-				cacheLineString = "	" + cacheLineString;
-			}
-			cacheFile.open(cacheFileName, std::ofstream::app);
-			if (!cacheFile.is_open())
-			{
-                		cout << "Could not open disk caching file for writing, quitting..." << endl;
-				exit;
-			}
-			cacheLineString.pop_back();
-			cacheFile << cacheLineString.c_str();
-			cacheFile.close();
-		}
+		this->dumpFeatureCache();
 	}
 }
+
+
+//void alnData::dumpSpecies(int i, Semaphore& semaphore)
+void alnData::dumpSpecies(int i)
+{
+//	semaphore.wait();
+	if (this->featureIndex != this->cacheFeatureIndex)
+	{
+		cout << "Dumping features to cache for " << this->species[i] << " species." << endl;
+	}
+	string cacheFileName;
+	string cacheLineString;
+	ofstream cacheFile;
+	vector<string> cacheSegment;
+	for (int j = 1; j < this->cacheFeatureIndex; j++)
+	{
+//		cerr << j << ".1 " << i << ".1 " << this->features[j][i] << endl;
+//		cout << this->features[j].size() << endl;
+//		cout << this->features[j][0] << endl;
+//		cout << this->features[j][1] << endl;
+//		cout << this->features[j][i] << endl;
+		if (this->features[j][i] == 0.0)
+		{
+			cacheSegment.push_back(to_string(0));
+		}
+		else if (this->features[j][i] == 1.0)
+		{
+			cacheSegment.push_back(to_string(1));
+		}
+		else
+		{
+			cacheSegment.push_back(to_string(this->features[j][i]));
+		}
+//		cout << j << ".2 " << i << ".2" << endl;
+	}
+	stringstream cacheLine;
+	copy(cacheSegment.begin(), cacheSegment.end(), ostream_iterator<string>(cacheLine, this->outputDelimiter.c_str()));
+	//copy(cacheSegment.begin(), cacheSegment.end(), ostream_iterator<int>(cacheLine, "	"));
+	cacheLineString = cacheLine.str();
+	cacheFileName = this->cacheDir + "/.cache_" + this->species[i] + ".txt";
+	if (this->featureIndex == this->cacheFeatureIndex)
+	{
+		std::remove(cacheFileName.c_str());
+	}
+	else
+	{
+		cacheLineString = this->outputDelimiter + cacheLineString;
+	}
+	cacheFile.open(cacheFileName, std::ofstream::app);
+	if (!cacheFile.is_open())
+	{
+				cout << "Could not open disk caching file for writing, quitting..." << endl;
+		exit;
+	}
+	cacheLineString.pop_back();
+	cacheFile << cacheLineString.c_str();
+	cacheFile.close();
+	if (this->featureIndex != this->cacheFeatureIndex)
+	{
+		cout << "Finished dumping features to cache for " << this->species[i] << " species." << endl;
+	}
+//	semaphore.signal();
+}
+
+void alnData::dumpSpeciesMulti(int i, Semaphore& semaphore)
+//void alnData::dumpSpecies(int i)
+{
+//	semaphore.wait();
+	if (this->featureIndex != this->cacheFeatureIndex)
+	{
+		cout << "Dumping features to cache for " << this->species[i] << " species." << endl;
+	}
+	string cacheFileName;
+	string cacheLineString;
+	ofstream cacheFile;
+	vector<string> cacheSegment;
+	for (int j = 1; j < this->cacheFeatureIndex; j++)
+	{
+//		cerr << j << ".1 " << i << ".1 " << this->features[j][i] << endl;
+//		cout << this->features[j].size() << endl;
+//		cout << this->features[j][0] << endl;
+//		cout << this->features[j][1] << endl;
+//		cout << this->features[j][i] << endl;
+		if (this->features[j][i] == 0.0)
+		{
+			cacheSegment.push_back(to_string(0));
+		}
+		else if (this->features[j][i] == 1.0)
+		{
+			cacheSegment.push_back(to_string(1));
+		}
+		else
+		{
+			cacheSegment.push_back(to_string(this->features[j][i]));
+		}
+//		cout << j << ".2 " << i << ".2" << endl;
+	}
+	stringstream cacheLine;
+	copy(cacheSegment.begin(), cacheSegment.end(), ostream_iterator<string>(cacheLine, this->outputDelimiter.c_str()));
+	//copy(cacheSegment.begin(), cacheSegment.end(), ostream_iterator<int>(cacheLine, "	"));
+	cacheLineString = cacheLine.str();
+	cacheFileName = this->cacheDir + "/.cache_" + this->species[i] + ".txt";
+	if (this->featureIndex == this->cacheFeatureIndex)
+	{
+		std::remove(cacheFileName.c_str());
+	}
+	else
+	{
+		cacheLineString = this->outputDelimiter + cacheLineString;
+	}
+	cacheFile.open(cacheFileName, std::ofstream::app);
+	if (!cacheFile.is_open())
+	{
+				cout << "Could not open disk caching file for writing, quitting..." << endl;
+		exit;
+	}
+	cacheLineString.pop_back();
+	cacheFile << cacheLineString.c_str();
+	cacheFile.close();
+	if (this->featureIndex != this->cacheFeatureIndex)
+	{
+		cout << "Finished dumping features to cache for " << this->species[i] << " species." << endl;
+	}
+	semaphore.signal();
+}
+
+
+void alnData::dumpFeatureCache()
+{
+
+	cout << "Dumping " << this->cacheFeatureIndex << " features to disk cache for " << this->species.size() << " species." << endl;
+
+	if (this->threads < 2)
+	{
+		for (int i = 0; i < this->species.size(); i++)
+		{
+	//		cerr << "Species IDX starting: " << i << endl;
+			this->dumpSpecies(i);
+	//		cerr << "Species IDX finished: " << i << endl;
+		}
+	} else {
+//  Static compilation with glibc causes use of condition_variable to generate a seg-fault
+		std::vector<std::thread> threads;
+		Semaphore semaphore(this->threads);
+
+		for (int i = 0; i < this->species.size(); i++)
+		{
+			semaphore.wait();
+			threads.emplace_back(&alnData::dumpSpeciesMulti, this, i, std::ref(semaphore));
+			//semaphore.signal()
+		}
+
+
+		for (auto& thread : threads)
+		{
+			thread.join();
+		}
+	}
+
+
+
+	this->cacheFeatureIndex = 1;
+//	cerr << "2" << endl;
+}
+
 
 void alnData::generateResponseFile(string baseName)
 {
@@ -496,7 +767,7 @@ void alnData::generateFeatureFile(string baseName)
 		}
 		for (int i = 0; i < this->species.size(); i++)
 		{
-			cacheFileName = ".cache_" + this->species[i] + ".txt";
+			cacheFileName = this->cacheDir + "/.cache_" + this->species[i] + ".txt";
 			cacheFile.open(cacheFileName);
 			if (!cacheFile.is_open())
 			{
@@ -572,14 +843,17 @@ void alnData::generateFeatureFile(string baseName)
 			sum += oneHot[j];
 		}
 		val = 1.0;
-		if (this->normalize)
+		if (!this->numericInput)
 		{
-			val = 1.0/sum;
-		}
-//		if (this->ignoreSingletons && sum == 1.0)
-		if (sum < this->countThreshold)
-		{
-			val = 0.0;
+			if (this->normalize)
+			{
+				val = 1.0/sum;
+			}
+	//		if (this->ignoreSingletons && sum == 1.0)
+			if (sum < this->countThreshold)
+			{
+				val = 0.0;
+			}
 		}
 		for (int j = 0; j < oneHot.size(); j++)
 		{
@@ -600,11 +874,11 @@ void alnData::generateFeatureFile(string baseName)
 				{
 					if (featureCache[k][j] == 0.0)
 					{
-						*outputHandles[handleIdx] << to_string(0) << this->delimiter;
+						*outputHandles[handleIdx] << to_string(0) << this->outputDelimiter;
 					}
 					else
 					{
-						*outputHandles[handleIdx] << to_string(featureCache[k][j]) << this->delimiter;
+						*outputHandles[handleIdx] << to_string(featureCache[k][j]) << this->outputDelimiter;
 					}
 				}
 				*outputHandles[handleIdx] << endl;
@@ -650,77 +924,18 @@ void alnData::generateFeatureFile(string baseName)
 		std::remove(handleFName.c_str());
 	}
 	featuresFileNew.close();
+}
 
-
-	//Open as many file handles as possible, then close enough to leave a buffer for writing other files
-	/*
-	vector<ofstream*> outputHandles;
-	int bufferHandles = 20;
-	int handleCount = 0;
-	while (true)
+void alnData::generateStatsFile(string baseName)
+{
+	string statsFileName = baseName + "/feature_stats_" + baseName + ".txt";
+	ofstream statsFile (statsFileName);
+	if (statsFile.is_open())
 	{
-		string ofname = baseName + "/test_out" + to_string(handleCount) + ".txt";
-		outputHandles.push_back(new ofstream(ofname));
-		handleCount++;
-		cout << ofname << endl;
-		if (!outputHandles[handleCount-1]->is_open())
-		{
-			break;
-		}
+		statsFile << "Samples\t" << this->species.size() << endl;
+		statsFile << "Features\t" << this->featureIndex << endl;
 	}
-	cout << "0" << endl;
-	for (int i = handleCount-1; i > handleCount - bufferHandles; i--)
-	{
-		outputHandles[i]->close();
-	}
-	handleCount = handleCount - bufferHandles;
-	int fPerHandle;
-	cout << "1" << endl;
-	//featuresFile.close();
-	//write to file
-	*/
-/*
-	ofstream featuresFile (featuresFileName);
-        if (!featuresFile.is_open())
-        {
-                cout << "Could not open features output file, quitting..." << endl;
-        }
-	cout << "2" << endl;
-//	fPerHandle = ceil(this->features.size() / handleCount);
-	if (featuresFile.is_open())
-	{
-		for (int i = 0; i < tFeatures.size(); i++)
-		{
-			string featureLine;
-			int handleIdx = 0;
-			for (int j = 0; j < this->features.size(); j++)
-			{
-//				if (handleIdx != j / fPerHandle)
-//				{
-//					//and line break to last handle
-//					*outputHandles[handleIdx] << endl;
-//					handleIdx = j / fPerHandle;
-//				}
-				if (tFeatures[i][j] == 0.0)
-				{
-					featureLine.append(to_string(0) + '\t');
-//					*outputHandles[handleIdx] << to_string(0) + '\t';
-				}
-				else
-				{
-					featureLine.append(to_string(tFeatures[i][j]) + '\t');
-//					*outputHandles[handleIdx] << to_string(tFeatures[i][j]) + '\t';
-				}
-			}
-//			*outputHandles[handleIdx] << endl;
-			featureLine.pop_back();
-			featuresFile << featureLine << endl;
-		}
-		featuresFile.close();
-	}
-	cout << "3" << endl;
-*/
-
+	statsFile.close();
 }
 
 void alnData::generateMappingFile(string baseName)
@@ -759,14 +974,14 @@ void alnData::generateGroupIndicesFile(string baseName)
 				geneEnd = groupIndices[geneGroupIndex[gene]][1];
 				for (int j = geneStart; j <= geneEnd; j++)
 				{
-					fieldFile << to_string(j) + this->delimiter;
+					fieldFile << to_string(j) + this->outputDelimiter;
 				}
 				groupEnd += geneEnd-geneStart+1;
 			}
-			indStarts.append(to_string(groupStart) + this->delimiter);
-			indEnds.append(to_string(groupEnd) + this->delimiter);
+			indStarts.append(to_string(groupStart) + this->outputDelimiter);
+			indEnds.append(to_string(groupEnd) + this->outputDelimiter);
 			weight = sqrt(1+(groupEnd - groupStart));
-			weights.append(to_string(weight) + this->delimiter);
+			weights.append(to_string(weight) + this->outputDelimiter);
 			groupStart = groupEnd + 1;
 		}
 		indStarts.pop_back();
