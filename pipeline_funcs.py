@@ -802,11 +802,16 @@ def generate_input_matrices(alnlist_filename, hypothesis_filename_list, args):
 					else:
 						shutil.move(os.path.join(preprocess_cwd, output_basename), output_basename)
 				if args.data_type != "numeric":
+					print("Calculating position statistics...")
 					position_stats = {}
 					#stat_keys = ["mic", "entropy"]
 					stat_keys = ["mic"]
+					pos_count = 0
 					for aln_basename in aln_file_list.keys():
 						position_stats[aln_basename] = calculate_position_stats(os.path.join(preprocess_cwd, aln_file_list[aln_basename]), filename)
+						pos_count = pos_count + 1
+						if pos_count % 1000 == 0:
+							print("Calculated position stats for {}/{} input files...".format(pos_count, len(aln_file_list)))
 					with open(os.path.join(output_basename, "pos_stats_" + hypothesis_basename + ".txt"), 'w') as file:
 						file.write("{}\t{}\n".format("Position Name", '\t'.join(stat_keys)))
 						for aln_basename in position_stats.keys():
@@ -1280,7 +1285,7 @@ def check_memory(features_filename, output_name):
 	except:
 		raise Exception("Problem opening feature stats file {}.".format(stats_filename))
 	available_mem = psutil.virtual_memory().available
-	feature_mem = round(4.2 * int(stats["Samples"]) * int(stats["Features"]))
+	feature_mem = round(17 * int(stats["Samples"]) * int(stats["Features"]))
 	if available_mem < feature_mem:
 		msg = "Exceeding available memory will severely degrade performance, if you're sure you want to try anyways, rerun MyESL with the --disable_mc flag."
 		raise Exception("Total size of {} in memory ({} bytes) would exceed available memory of {} bytes.\n{}".format(feature_filename, feature_mem, available_mem, msg))
