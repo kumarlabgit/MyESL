@@ -108,11 +108,50 @@ DrPhylo outputs a model grid (```M-grid```) and a text file in a matrix format c
 ```
 <br />	
 
-## DrPhylo implementation using example dataset ##
+## DrPhylo implementation using an example Fungi dataset in Windows ##
 
 After finishing the setup, change the directory to `DrPhylo-master`. To create a text file containing the list of paths for all gene sequence alignments: 
 ```
-cd sample_files
+cd Fungi_data
+for %f in (aln\*.fasta) do echo %f >> aln.txt
+cd ..
+```
+<br />
+<br />
+
+DrPhylo analysis for building clade models for two labeled clades, producing a result set for each of two hypotheses generated from the input tree:
+<br />
+<br />
+
+```
+MyESL.exe sample_files/angiosperm_100_sample_alns.txt --tree sample_files/ESL_test.nwk --DrPhylo --output sample_tree_output  
+
+```
+<br />
+
+DrPhylo analysis using a user-defined hypothesis, producing a single clade model for the given hypothesis:
+<br />
+
+```
+MyESL.exe Fungi_data/aln.txt --classes Fungi_data/A_B_Hyp.txt --DrPhylo --output Fungi_test_output 
+
+```
+<br />
+
+DrPhylo analysis for building an ensemble clade model for a user-defined hypothesis using the grid search option. The site and gene sparsity score range from 0.05 to 0.1 and a step size of 0.05:
+<br />
+
+```
+MyESL.exe Fungi_data/aln.txt --classes Fungi_data/A_B_Hyp.txt --DrPhylo --lambda1_grid 0.05,0.1,0.05 --lambda2_grid 0.05,0.1,0.05 --output Fungi_test_grid_output 
+
+```
+<br />
+
+## DrPhylo implementation using an example Fungi dataset in Windows ##
+
+After finishing the setup, change the directory to `DrPhylo-master`. To create a text file containing the list of paths for all gene sequence alignments: 
+```
+cd Fungi_data
 ls angiosperm_alns/*.fasta > angiosperm_100_sample_alns.txt
 cd ..
 ```
