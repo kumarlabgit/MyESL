@@ -182,7 +182,7 @@ You can install these libraries using pip:
 
 To perform DrPhylo analysis, get the ESL package using the following on the command line:
 
-	git clone -b https://github.com/kumarlabgit/MyESL MyESL
+	git clone -b master https://github.com/kumarlabgit/MyESL MyESL
 	cd MyESL
 	bash setup.sh
 
