@@ -124,7 +124,7 @@ DrPhylo analysis for building clade models for two labeled clades, producing a r
 <br />
 
 ```
-MyESL.exe sample_files/angiosperm_100_sample_alns.txt --tree sample_files/ESL_test.nwk --DrPhylo --output sample_tree_output  
+MyESL.exe Fungi_data/aln.txt --tree Fungi_data/Fungi_T1.nwk --DrPhylo --output Fungi_tree_output  
 
 ```
 <br />
