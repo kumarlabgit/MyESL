@@ -64,9 +64,9 @@ MyESL.exe alignment_list.txt  --classes phylogenetic_hypothesis.txt --DrPhylo
 ```
 
 alignment_list.txt                       : A text file contains a list of paths for all sequence alignments. For example,
-                                           angiosperm_alns/7276_C12.fasta
-                                           angiosperm_alns/5111_C12.fasta
-                                           angiosperm_alns/5507_C12.fasta
+                                           Fungi_data/aln/BUSCOfEOG7B05NR.fasta
+                                           Fungi_data/aln/BUSCOfEOG7B05NZ.fasta
+                                           Fungi_data/aln/BUSCOfEOG7B05PO.fasta
 
 --tree phylogenetic_tree.nwk             : A phylogenetic tree in newick format with a node ID to construct a hypothesis for the clade of interest.
                                            The hypothesis can also be specified with a separate file using the --classes parameter.
