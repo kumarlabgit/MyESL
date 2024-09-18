@@ -9,6 +9,7 @@ import psutil
 import numpy
 import pandas
 from datetime import datetime
+from datetime import timedelta
 from Bio import Phylo
 from Bio import AlignIO
 import gene_contribution_visualizer as gcv
@@ -256,7 +257,8 @@ def generate_hypothesis_set(args):
 		neg_idx = 1
 		pos_idxs = []
 		neg_idxs = []
-		with open("{}_{}_hypothesis.txt".format(nodename, args.output), 'w') as file:
+		new_fname = os.path.join(args.output, "{}_hypothesis.txt".format(nodename, args.output))
+		with open(new_fname, 'w') as file:
 			for taxa in taxa_list:
 				if responses[nodename][taxa] not in [0, "0"]:
 					file.write("{}\t{}\n".format(taxa, responses[nodename][taxa]))
@@ -270,11 +272,12 @@ def generate_hypothesis_set(args):
 						neg_idx += 1
 						if neg_idx > args.xval:
 							neg_idx = 1
-		new_files['hypothesis_files'] += ["{}_{}_hypothesis.txt".format(nodename, args.output)]
+		new_files['hypothesis_files'] += [new_fname]
 		random.shuffle(pos_idxs)
 		random.shuffle(neg_idxs)
+		new_fname = os.path.join(args.output, "{}_xval_groups.txt".format(nodename, args.output))
 		if args.kfold_ids is None:
-			with open("{}_{}_xval_groups.txt".format(nodename, args.output), 'w') as file:
+			with open(new_fname, 'w') as file:
 				for taxa in taxa_list:
 					if responses[nodename][taxa] not in [0, "0"]:
 						if float(responses[nodename][taxa]) > 0:
@@ -284,35 +287,38 @@ def generate_hypothesis_set(args):
 							# file.write("{}\t{}\n".format(taxa, neg_idxs.pop()))
 							file.write("{}\n".format(neg_idxs.pop()))
 		else:
-			shutil.copy(args.kfold_ids, "{}_{}_xval_groups.txt".format(nodename, args.output))
-		new_files['xval_id_files'] += ["{}_{}_xval_groups.txt".format(nodename, args.output)]
+			shutil.copy(args.kfold_ids, new_fname)
+		new_files['xval_id_files'] += [new_fname]
+		opts_fname = os.path.join(args.output, "{}_slep_opts.txt".format(nodename, args.output))
 		if slep_sample_balance:
-			with open("{}_{}_slep_opts.txt".format(nodename, args.output), 'w') as opts_file:
+			sweights_fname = os.path.join(args.output, "{}_sweights.txt".format(nodename, args.output))
+			with open(opts_fname, 'w') as opts_file:
 				if args.slep_opts is not None:
 					with open(args.slep_opts, 'r') as base_opts_file:
 						for line in base_opts_file:
 							opts_file.write(line)
 				# ratio = sum([1.0 for x in responses[nodename].values() if x == 1])/sum([1.0 for x in responses[nodename].values() if x == -1])
-				opts_file.write("sWeight\t{}\n".format(os.path.join(args.output, "{}_{}_sweights.txt".format(nodename, args.output))))
-				with open("{}_{}_sweights.txt".format(nodename, args.output), 'w') as sweights_file:
+				opts_file.write("sWeight\t{}\n".format(os.path.join(args.output, "{}_sweights.txt".format(nodename, args.output))))
+				with open(sweights_fname, 'w') as sweights_file:
 					sweights_file.write("{}\n".format(1.0))
 					sweights_file.write("{}\n".format(
 						sum([1.0 for x in responses[nodename].values() if int(x) == 1]) / sum([1.0 for x in responses[nodename].values() if int(x) == -1])))
-			new_files['slep_opts_files'] += ["{}_{}_slep_opts.txt".format(nodename, args.output)]
-			new_files['sweights_files'] += ["{}_{}_sweights.txt".format(nodename, args.output)]
-		else:
-			new_files['slep_opts_files'] += [args.slep_opts]
-	for file_type in new_files.keys():
-		files = []
-		for file in new_files[file_type]:
-			try:
-				shutil.move(file, os.path.join(args.output, file))
-				files += [os.path.join(args.output, file)]
-			except:
-				pass
-		if len(new_files['slep_opts_files']) == 0:
-			new_files['slep_opts_files'] = [None for i in range(0, len(new_files["hypothesis_files"]))]
-		new_files[file_type] = files
+			new_files['slep_opts_files'] += [opts_fname]
+			new_files['sweights_files'] += [sweights_fname]
+		elif args.slep_opts is not None:
+			shutil.copy(args.slep_opts, opts_fname)
+			new_files['slep_opts_files'] += [opts_fname]
+	# for file_type in new_files.keys():
+	# 	files = []
+	# 	for file in new_files[file_type]:
+	# 		try:
+	# 			shutil.move(file, os.path.join(args.output, file))
+	# 			files += [os.path.join(args.output, file)]
+	# 		except:
+	# 			pass
+	# 	new_files[file_type] = files
+	if len(new_files['slep_opts_files']) == 0:
+		new_files['slep_opts_files'] = [None for i in range(0, len(new_files["hypothesis_files"]))]
 	return new_files
 
 
@@ -322,7 +328,7 @@ def generate_input_matrices(args, file_dict):
 	gene_list = []
 	group_list = []
 	partitions_max = 1.0
-	output_basename = args.output
+	output_basename = os.path.split(args.output)[1]
 	options = "useCaching threads {}".format(args.threads)
 	if not args.include_singletons:
 		options = "{} {}".format(options.strip(), "is")  # Note: "is" stands for /ignore/ singletons in the preprocessor.
@@ -339,82 +345,90 @@ def generate_input_matrices(args, file_dict):
 			raise Exception("Invalid data_type specified ({}), accepted values are: universal, molecular, protein, nucleotide, numeric.".format(data_type))
 		options = "{} {} {}".format(options.strip(), "dataType", args.data_type)
 	options = options.replace(" ", "*")
-	with open(args.aln_list) as file:
-		for line in file:
-			group = []
-			for aln_filename in line.strip().split(","):
-				basename = os.path.splitext(os.path.basename(aln_filename.strip()))[0]
-				group.append(basename)
-				if basename in aln_file_list.keys():
-					if aln_file_list[basename] != aln_filename.strip():
-						raise Exception("Found multiple alignment files with identical basename {}.".format(basename))
-				else:
-					aln_file_list[basename] = aln_filename.strip()
-			gene_list.extend(group)
-			group_list.append(group)
-	preprocess_exe = os.path.join(os.getcwd(), "bin", "preprocess")
-	preprocess_cwd, alnlist_filename = os.path.split(args.aln_list)
+	alnlist_dir, alnlist_filename = os.path.split(args.aln_list)
+	if alnlist_dir == "":
+		alnlist_dir = "."
+	preprocess_cwd = os.path.split(args.output)[0]
 	if preprocess_cwd == "":
-			preprocess_cwd = "."
+		preprocess_cwd = "."
+	with open(os.path.join(args.output, "aln_list.txt"), 'w') as abspath_aln_list:
+		with open(args.aln_list) as file:
+			for line in file:
+				group = []
+				abspath_group = []
+				for aln_filename in line.strip().split(","):
+					alnlist_dir_abspath = os.path.abspath(alnlist_dir)
+					basename = os.path.splitext(os.path.basename(aln_filename.strip()))[0]
+					aln_abspath = os.path.join(alnlist_dir_abspath, os.path.split(aln_filename.strip())[0], os.path.split(aln_filename.strip())[1])
+					group.append(basename)
+					if basename in aln_file_list.keys():
+						if aln_file_list[basename] != aln_abspath:
+							raise Exception("Found multiple alignment files with identical basename {}.".format(basename))
+					else:
+						# aln_file_list[basename] = aln_filename.strip()
+						aln_file_list[basename] = aln_abspath
+						abspath_group.append(aln_abspath)
+				gene_list.extend(group)
+				group_list.append(group)
+				abspath_aln_list.write("{}\n".format(",".join(abspath_group)))
+	preprocess_exe = os.path.join(os.getcwd(), "bin", "preprocess")
 	#for filename in hypothesis_filename_list:
 	for filename in file_dict['hypothesis_files']:
 		# Construct preprocessing command
-		preprocess_cmd = "{}*{}*{}*{}*{}".format(preprocess_exe, os.path.join(os.getcwd(), filename), alnlist_filename, output_basename, options)
+		# preprocess_cmd = "{}*{}*{}*{}*{}".format(preprocess_exe, os.path.join(os.getcwd(), filename), alnlist_filename, output_basename, options)
+		# preprocess_cmd = "{}*{}*{}*{}*{}".format(preprocess_exe, os.path.join(os.getcwd(), filename), os.path.join(os.getcwd(), args.output, "aln_list.txt"), output_basename, options)
+		preprocess_cmd = "{}*{}*{}*{}*{}".format(preprocess_exe, os.path.join(os.getcwd(), filename), os.path.join(os.getcwd(), args.output, "aln_list.txt"), output_basename, options)
 		print(preprocess_cmd.replace("*"," "))
 		hypothesis_basename = os.path.splitext(os.path.basename(filename))[0]
 		if args.skip_preprocessing:
-			if os.path.exists(os.path.join(output_basename, "feature_" + hypothesis_basename + ".txt")):
+			if os.path.exists(os.path.join(args.output, "feature_" + hypothesis_basename + ".txt")):
 				print("Features file detected, skipping preprocessing step...")
 			else:
-				raise Exception("Preprocessing skipped, but no features file detected at {}.".format(os.path.join(output_basename, "feature_" + hypothesis_basename + ".txt")))
+				raise Exception("Preprocessing skipped, but no features file detected at {}.".format(os.path.join(args.output, "feature_" + hypothesis_basename + ".txt")))
 		else:
 			subprocess.call(preprocess_cmd.split("*"), stderr=subprocess.STDOUT, cwd=preprocess_cwd)
-			if preprocess_cwd != ".":
-				if os.path.exists(output_basename):
-					shutil.copytree(os.path.join(preprocess_cwd, output_basename), output_basename, dirs_exist_ok=True)
-					shutil.rmtree(os.path.join(preprocess_cwd, output_basename))
-				else:
-					shutil.move(os.path.join(preprocess_cwd, output_basename), output_basename)
 			if not args.disable_mc:
 				partitions_max = max(partitions_max, check_memory("feature_{}.txt".format(hypothesis_basename), args.output))
-			if args.data_type != "numeric":
+			if args.data_type != "numeric" and partitions_max <= 1.0:
 				print("Calculating position statistics...")
 				position_stats = {}
 				#stat_keys = ["mic", "entropy"]
 				stat_keys = ["mic"]
 				pos_count = 0
 				for aln_basename in aln_file_list.keys():
-					position_stats[aln_basename] = calculate_position_stats(os.path.join(preprocess_cwd, aln_file_list[aln_basename]), filename)
+					position_stats[aln_basename] = calculate_position_stats(aln_file_list[aln_basename], filename)
 					pos_count = pos_count + 1
 					if pos_count % 1000 == 0:
 						print("Calculated position stats for {}/{} input files...".format(pos_count, len(aln_file_list)))
-				with open(os.path.join(output_basename, "pos_stats_" + hypothesis_basename + ".txt"), 'w') as file:
+				with open(os.path.join(args.output, "pos_stats_" + hypothesis_basename + ".txt"), 'w') as file:
 					file.write("{}\t{}\n".format("Position Name", '\t'.join(stat_keys)))
 					for aln_basename in position_stats.keys():
 						for i in range(0, len(position_stats[aln_basename]["mic"])):
 							file.write("{}_{}\t{}\n".format(aln_basename, i, '\t'.join([str(position_stats[aln_basename][stat_key][i]) for stat_key in stat_keys])))
-				new_files['pos_stats_files'] += [os.path.join(output_basename, "pos_stats_" + hypothesis_basename + ".txt")]
-			shutil.move(os.path.join(output_basename, "feature_" + output_basename + ".txt"), os.path.join(output_basename, "feature_" + hypothesis_basename + ".txt"))
-			shutil.move(os.path.join(output_basename, "group_indices_" + output_basename + ".txt"), os.path.join(output_basename, "group_indices_" + hypothesis_basename + ".txt"))
-			shutil.move(os.path.join(output_basename, "response_" + output_basename + ".txt"), os.path.join(output_basename, "response_" + hypothesis_basename + ".txt"))
-#			shutil.move(hypothesis_basename.replace("hypothesis", "xval_groups.txt"), os.path.join(output_basename, hypothesis_basename.replace("hypothesis", "xval_groups.txt")))
-			shutil.move(os.path.join(output_basename, "field_" + output_basename + ".txt"), os.path.join(output_basename, "field_" + hypothesis_basename + ".txt"))
-			shutil.move(os.path.join(output_basename, "feature_mapping_" + output_basename + ".txt"), os.path.join(output_basename, "feature_mapping_" + hypothesis_basename + ".txt"))
+				new_files['pos_stats_files'] += [os.path.join(args.output, "pos_stats_" + hypothesis_basename + ".txt")]
+			shutil.move(os.path.join(args.output, "feature_" + output_basename + ".txt"), os.path.join(args.output, "feature_" + hypothesis_basename + ".txt"))
+			shutil.move(os.path.join(args.output, "group_indices_" + output_basename + ".txt"), os.path.join(args.output, "group_indices_" + hypothesis_basename + ".txt"))
+			shutil.move(os.path.join(args.output, "response_" + output_basename + ".txt"), os.path.join(args.output, "response_" + hypothesis_basename + ".txt"))
+#			shutil.move(hypothesis_basename.replace("hypothesis", "xval_groups.txt"), os.path.join(oargs.output, hypothesis_basename.replace("hypothesis", "xval_groups.txt")))
+			shutil.move(os.path.join(args.output, "field_" + output_basename + ".txt"), os.path.join(args.output, "field_" + hypothesis_basename + ".txt"))
+			shutil.move(os.path.join(args.output, "feature_mapping_" + output_basename + ".txt"), os.path.join(args.output, "feature_mapping_" + hypothesis_basename + ".txt"))
 #			try:
-#				shutil.move(os.path.join(output_basename, "resampled_" + output_basename + ".txt"), os.path.join(output_basename, "resampled_" + hypothesis_basename + ".txt"))
+#				shutil.move(os.path.join(args.output, "resampled_" + output_basename + ".txt"), os.path.join(args.output, "resampled_" + hypothesis_basename + ".txt"))
 #			except:
 #				pass
 		#new_files = {'response_files': [], 'group_indices_files': [], 'features_files': [], 'field_files': []}
-		#response_file_list.append(os.path.join(output_basename, "response_" + hypothesis_basename + ".txt"))
-		new_files['response_files'] += [os.path.join(output_basename, "response_" + hypothesis_basename + ".txt")]
-		#group_indices_file_list.append(os.path.join(output_basename, "group_indices_" + hypothesis_basename + ".txt"))
-		new_files['group_indices_files'] += [os.path.join(output_basename, "group_indices_" + hypothesis_basename + ".txt")]
-		#field_file_list.append(os.path.join(output_basename, "field_" + hypothesis_basename + ".txt"))
-		new_files['field_files'] += [os.path.join(output_basename, "field_" + hypothesis_basename + ".txt")]
-		#features_file_list.append(os.path.join(output_basename, "feature_" + hypothesis_basename + ".txt"))
-		new_files['features_files'] += [os.path.join(output_basename, "feature_" + hypothesis_basename + ".txt")]
-		new_files['feature_mapping_files'] += [os.path.join(output_basename, "feature_mapping_" + hypothesis_basename + ".txt")]
-	with open(os.path.join(args.output, "missing_seqs_" + args.output + ".txt"), "r") as file:
+		#response_file_list.append(os.path.join(args.output, "response_" + hypothesis_basename + ".txt"))
+		new_files['response_files'] += [os.path.join(args.output, "response_" + hypothesis_basename + ".txt")]
+		#group_indices_file_list.append(os.path.join(args.output, "group_indices_" + hypothesis_basename + ".txt"))
+		new_files['group_indices_files'] += [os.path.join(args.output, "group_indices_" + hypothesis_basename + ".txt")]
+		#field_file_list.append(os.path.join(args.output, "field_" + hypothesis_basename + ".txt"))
+		new_files['field_files'] += [os.path.join(args.output, "field_" + hypothesis_basename + ".txt")]
+		#features_file_list.append(os.path.join(args.output, "feature_" + hypothesis_basename + ".txt"))
+		new_files['features_files'] += [os.path.join(args.output, "feature_" + hypothesis_basename + ".txt")]
+		new_files['feature_mapping_files'] += [os.path.join(args.output, "feature_mapping_" + hypothesis_basename + ".txt")]
+	if partitions_max > 1.0:
+		raise Exception("Minimum required partitions:{}".format(partitions_max))
+	with open(os.path.join(args.output, "missing_seqs_" + output_basename + ".txt"), "r") as file:
 		for ms_line in file:
 			ms_data = ms_line.strip().split("\t")
 			args.missing_seqs.add((ms_data[1], os.path.splitext(os.path.basename(ms_data[0]))[0]))
@@ -430,12 +444,12 @@ def generate_lambda_list(args, file_dict):
 	[y_min, y_max, y_interval] = [float(x) for x in args.grid_y.split(',')]
 	y_steps = (y_max - y_min) / y_interval
 	y_list = [y_min + (x * y_interval) for x in range(0, int(y_steps) + 1) if y_min + (x * y_interval) < 1.0]
-	with open(os.path.join(args.output, "{}_lambda_list.txt".format(args.output)), 'w') as file:
+	with open(os.path.join(args.output, "lambda_list.txt".format(args.output)), 'w') as file:
 		for lambda1 in z_list:
 			for lambda2 in y_list:
 				lambda_list.append((lambda1, lambda2))
 				file.write("{:g}\t{:g}\n".format(lambda1, lambda2))
-	new_files['lambda_list_file'] = [os.path.join(args.output, "{}_lambda_list.txt".format(args.output))]
+	new_files['lambda_list_file'] = [os.path.join(args.output, "lambda_list.txt".format(args.output))]
 	return new_files
 
 
@@ -849,21 +863,25 @@ def summarize_models(args, file_dict):
 
 
 def grid_search(args):
-	start = datetime.now()
 	file_dict = {}
 	args.HSS = {}
 	args.missing_seqs = set()
 	try:
 		if not os.path.exists(args.output):
 			os.mkdir(args.output)
+		args.timers["preprocessing"]["start"] = datetime.now()
 		new_files = generate_hypothesis_set(args)
 		file_dict.update(new_files)
 		new_files = generate_lambda_list(args, file_dict)
 		file_dict.update(new_files)
 		new_files = generate_input_matrices(args, file_dict)
 		file_dict.update(new_files)
+		args.timers["preprocessing"]["total"] = args.timers["preprocessing"].get("total", timedelta(seconds=0)) + (datetime.now() - args.timers["preprocessing"]["start"])
+		args.timers["sglasso"]["start"] = datetime.now()
 		new_files = run_sg_lasso(args, file_dict)
 		file_dict.update(new_files)
+		args.timers["sglasso"]["total"] = args.timers["sglasso"].get("total", timedelta(seconds=0)) + (datetime.now() - args.timers["sglasso"]["start"])
+		args.timers["analysis"]["start"] = datetime.now()
 		new_files = process_weights(args, file_dict)
 		file_dict.update(new_files)
 		if not args.grid_summary_only:
@@ -871,6 +889,7 @@ def grid_search(args):
 			file_dict.update(new_files)
 		new_files = summarize_models(args, file_dict)
 		file_dict.update(new_files)
+		args.timers["analysis"]["total"] = args.timers["analysis"].get("total", timedelta(seconds=0)) + (datetime.now() - args.timers["analysis"]["start"])
 		# for file_type in file_dict.keys():
 		# 	print(file_type)
 		# 	for file in file_dict[file_type]:
@@ -929,7 +948,7 @@ def check_file_dict(file_dict):
 
 def check_memory(features_filename, output_name):
 	#stats_filename = features_filename.replace("feature_", "feature_stats_")
-	stats_filename = os.path.join(output_name, "feature_stats_{}.txt".format(output_name))
+	stats_filename = os.path.join(output_name, "feature_stats_{}.txt".format(os.path.split(output_name)[1]))
 	try:
 		stats = {}
 		with open(stats_filename, 'r') as stats_file:
@@ -940,6 +959,7 @@ def check_memory(features_filename, output_name):
 		raise Exception("Problem opening feature stats file {}.".format(stats_filename))
 	available_mem = psutil.virtual_memory().available
 	feature_mem = round(17 * int(stats["Samples"]) * int(stats["Features"]))
+	# feature_mem = round((17*10) * int(stats["Samples"]) * int(stats["Features"]))
 	if available_mem < feature_mem:
 		msg = "Exceeding available memory will severely degrade performance, if you're sure you want to try anyways, rerun MyESL with the --disable_mc flag."
 		print("Total size of {} in memory ({} bytes) would exceed available memory of {} bytes.\n{}".format(features_filename, feature_mem, available_mem, msg))
@@ -1123,7 +1143,7 @@ def cleanup_directory(args, file_dict):
 			# new_fname = "{}_{}".format(file_type.replace("_median_files", ""), fname.replace(file_type.replace("_files", ""), "summary"))
 			new_fname = os.path.join(dir, new_basename)
 			new_fnames += [new_fname]
-			if args.verbose or True:
+			if args.verbose:
 				print("Attempting to move {} to {}".format(fname, new_fname))
 			try:
 				shutil.move(fname, new_fname)
