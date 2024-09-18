@@ -150,7 +150,7 @@ if __name__ == '__main__':
 		args.m_grid = True
 	if args.no_group_penalty:
 		args.lambda2 = 0.0000000001
-
+	args.timers = {"preprocessing": {"start": None,}, "sglasso": {"start": None}, "analysis": {"start": None}}
 	if (args.grid_z is None and args.grid_y is not None) or (args.grid_y is None and args.grid_z is not None):
 		raise Exception("Only one grid search parameter specified, --grid_z and --grid_y must be specified together.")
 	elif args.grid_z is not None and args.grid_y is not None and args.xval <= 1:
@@ -161,11 +161,13 @@ if __name__ == '__main__':
 			try:  # run grid search on initial set, in a try block.
 				gs_files = pf.grid_search(args)
 			except Exception as e:  # if it fails, confirm that it failed because the dataset is too large for memory and set partitions accordingly, otherwise raise an error
-				e_msg, req_parts = e.strip().split(":")
+				e_msg, req_parts = str(e).split(":")
 				if e_msg != "Minimum required partitions":
 					raise Exception(e)
 				else:
-					args.partitions = int(req_parts)
+					args.partitions = math.ceil(float(req_parts))
+					args.disable_mc = True
+					print("Data too large for available memory, setting partition count to {} and restarting.".format(args.partitions))
 			# if it succeeds, you're done
 		if args.partitions is not None and args.partitions > 1:
 			if gs_files is None:
@@ -181,18 +183,19 @@ if __name__ == '__main__':
 					# run grid_search on each partition
 					part_gs_files = [{} for i in range(0, args.partitions)]
 					part_args = copy.deepcopy(args)
+					part_args.timers = args.timers
 					part_args.stats_out = "G"
 					part_args.grid_summary_only = True
-					shutil.copy(gs_files['hypothesis_files'][j], os.path.basename(gs_files['hypothesis_files'][j]).replace("_{}_hypothesis.txt".format(args.output), ".txt"))
-					part_args.response = os.path.basename(gs_files['hypothesis_files'][j]).replace("_{}_hypothesis.txt".format(args.output), ".txt")
+					shutil.copy(gs_files['hypothesis_files'][j], os.path.join(args.output, os.path.basename(gs_files['hypothesis_files'][j]).replace("_hypothesis.txt".format(args.output), ".txt")))
+					part_args.response = os.path.join(args.output, os.path.basename(gs_files['hypothesis_files'][j]).replace("_hypothesis.txt".format(args.output), ".txt"))
 					part_args.kfold_ids = gs_files['hypothesis_files'][j]
 					for i in range(0, args.partitions):
-						part_args.output = "{}_part{}".format(args.output, i)
+						part_args.output = os.path.join(args.output, "{}_part{}".format(os.path.basename(args.output), i))
 						part_args.partitions = 1
 						part_args.aln_list = aln_list_partitions[i]
 						part_gs_files[i] = pf.grid_search(part_args)
-						if i == args.partitions + 1:
-							os.remove(aln_list_partitions[i])
+						# if i == args.partitions + 1:
+						# 	os.remove(aln_list_partitions[i])
 					# analyze GSS file out of grid_search to select genes that capture X% of total GSS
 					selected_size = sum(aln_stats.values())
 					selected_proteins = []
@@ -201,18 +204,17 @@ if __name__ == '__main__':
 					while selected_size > (sum(aln_stats.values()) / args.partitions):
 						pct_select = pct_select * 0.9
 						selected_proteins = []
+						selected_groups = []
 						for i in range(0, args.partitions):
 							GSS_file = part_gs_files[i]['GSS_median_files'][0]
 							selected_proteins += pf.select_top_gss(GSS_file, pct_select)
 						selected_size = 0
 						for file_group in aln_stats.keys():
-							select = False
 							for filename in file_group.strip().split(','):
 								if os.path.splitext(os.path.basename(filename))[0] in selected_proteins:
-									select = True
-							if select:
-								selected_groups += [file_group]
-								selected_size += aln_stats[file_group]
+									selected_groups += [file_group]
+									selected_size += aln_stats[file_group]
+									break
 					# generate final alignment file list file and matching modified copy of args to match
 					aln_dir = os.path.split(args.aln_list)[0]
 					final_aln_list_filename = os.path.join(aln_dir, "{}_final{}".format(os.path.splitext(os.path.basename(part_args.response))[0], os.path.splitext(os.path.basename(part_args.response))[1]))
@@ -220,27 +222,28 @@ if __name__ == '__main__':
 						for group in selected_groups:
 							file.write("{}\n".format(group))
 					# run grid search on final set.
-					part_args.output = "{}_final".format(args.output)
+					part_args.output = os.path.join(args.output, "{}_final".format(args.output))
 					part_args.aln_list = final_aln_list_filename
 					part_args.disable_mc = True
 					part_args.grid_summary_only = args.grid_summary_only
 					part_args.stats_out = args.stats_out
 					final_gs_files[j] = pf.grid_search(part_args)
-					os.remove(os.path.basename(gs_files['hypothesis_files'][j]).replace("_{}_hypothesis.txt".format(args.output), ".txt"))
+					os.remove(gs_files['hypothesis_files'][j].replace("_hypothesis.txt".format(args.output), ".txt"))
 					for i in range(0, args.partitions):
 						pf.cleanup_directory(args, part_gs_files[i])
 					pf.cleanup_directory(args, final_gs_files[j])
 			except Exception as e:
 				raise Exception(e)
-			finally:
-				# clean up partition folders
-				for i in range(0, args.partitions):
-					try:
-						shutil.move("{}_part{}".format(args.output, i), os.path.join(args.output, "{}_part{}".format(args.output, i)))
-					except:
-						pass
-				try:
-					shutil.move("{}_final".format(args.output), os.path.join(args.output, "{}_final".format(args.output)))
-				except:
-					pass
-
+			# finally:
+			# 	# clean up partition folders
+			# 	for i in range(0, args.partitions):
+			# 		try:
+			# 			shutil.move("{}_part{}".format(args.output, i), os.path.join(args.output, "{}_part{}".format(args.output, i)))
+			# 		except:
+			# 			pass
+			# 	try:
+			# 		shutil.move("{}_final".format(args.output), os.path.join(args.output, "{}_final".format(args.output)))
+			# 	except:
+			# 		pass
+	for key in args.timers.keys():
+		print("Total time elapsed for {}: {}.".format(key, args.timers[key]["total"]))
