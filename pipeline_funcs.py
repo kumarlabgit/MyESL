@@ -938,8 +938,8 @@ def check_memory(features_filename, output_name):
 	except:
 		raise Exception("Problem opening feature stats file {}.".format(stats_filename))
 	available_mem = psutil.virtual_memory().available
-	# feature_mem = round(17 * int(stats["Samples"]) * int(stats["Features"]))
-	feature_mem = round((17*10*5) * int(stats["Samples"]) * int(stats["Features"]))
+	feature_mem = round(17 * int(stats["Samples"]) * int(stats["Features"]))
+	# feature_mem = round((17*10*5) * int(stats["Samples"]) * int(stats["Features"]))
 	if available_mem < feature_mem:
 		msg = "Exceeding available memory will severely degrade performance, if you're sure you want to try anyways, rerun MyESL with the --disable_mc flag."
 		print("Total size of {} in memory ({} bytes) would exceed available memory of {} bytes.\n{}".format(features_filename, feature_mem, available_mem, msg))
