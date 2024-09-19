@@ -150,11 +150,14 @@ if __name__ == '__main__':
 		args.m_grid = True
 	if args.no_group_penalty:
 		args.lambda2 = 0.0000000001
-	args.timers = {"preprocessing": {"start": None,}, "sglasso": {"start": None}, "analysis": {"start": None}}
+	args.timers = {"preprocessing": {"start": None}, "sglasso": {"start": None}, "analysis": {"start": None}}
 	if (args.grid_z is None and args.grid_y is not None) or (args.grid_y is None and args.grid_z is not None):
 		raise Exception("Only one grid search parameter specified, --grid_z and --grid_y must be specified together.")
 	elif args.grid_z is not None and args.grid_y is not None and args.xval <= 1:
 		gs_files = None
+		if not os.path.exists(args.output):
+			os.mkdir(args.output)
+		args.aln_list = pf.aln_list_to_absolute(args.aln_list, args.output)
 		if args.partitions is None or args.partitions == 1:
 			gs_files = pf.grid_search(args)
 		elif args.partitions < 1:  # If partitions set to a value < 1, automatically determine ideal partition size
@@ -175,7 +178,8 @@ if __name__ == '__main__':
 			# fetch alignment filesizes to estimate split
 			aln_stats = pf.stat_aln_files(args.aln_list)
 			# generate partitions# alignment file list files and matching modified copies of args to match
-			aln_list_partitions = pf.generate_aln_partitions(aln_stats, args.partitions, args.aln_list)
+			# aln_list_partitions = pf.generate_aln_partitions(aln_stats, args.partitions, args.aln_list)
+			aln_list_partitions = pf.generate_aln_partitions(aln_stats, args.partitions, os.path.join(args.output, "aln_list.txt"))
 			# run grid_search separately for each hypothesis
 			final_gs_files = [{} for j in range(0, len(gs_files['hypothesis_files']))]
 			try:
@@ -217,7 +221,7 @@ if __name__ == '__main__':
 									break
 					# generate final alignment file list file and matching modified copy of args to match
 					aln_dir = os.path.split(args.aln_list)[0]
-					final_aln_list_filename = os.path.join(aln_dir, "{}_final{}".format(os.path.splitext(os.path.basename(part_args.response))[0], os.path.splitext(os.path.basename(part_args.response))[1]))
+					final_aln_list_filename = os.path.join(aln_dir, "{}_aln_list_final{}".format(os.path.splitext(os.path.basename(part_args.response))[0], ".txt"))
 					with open(final_aln_list_filename, 'w') as file:
 						for group in selected_groups:
 							file.write("{}\n".format(group))
@@ -232,6 +236,10 @@ if __name__ == '__main__':
 					for i in range(0, args.partitions):
 						pf.cleanup_directory(args, part_gs_files[i])
 					pf.cleanup_directory(args, final_gs_files[j])
+				# pf.cleanup_directory(args, gs_files)
+				for filename in os.listdir(args.output):
+					if os.path.splitext(filename)[1] == ".txt" and os.path.exists(os.path.join(args.output, filename)):
+						os.remove(os.path.join(args.output, filename))
 			except Exception as e:
 				raise Exception(e)
 			# finally:
