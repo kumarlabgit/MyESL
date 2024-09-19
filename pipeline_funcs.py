@@ -351,33 +351,13 @@ def generate_input_matrices(args, file_dict):
 	preprocess_cwd = os.path.split(args.output)[0]
 	if preprocess_cwd == "":
 		preprocess_cwd = "."
-	with open(os.path.join(args.output, "aln_list.txt"), 'w') as abspath_aln_list:
-		with open(args.aln_list) as file:
-			for line in file:
-				group = []
-				abspath_group = []
-				for aln_filename in line.strip().split(","):
-					alnlist_dir_abspath = os.path.abspath(alnlist_dir)
-					basename = os.path.splitext(os.path.basename(aln_filename.strip()))[0]
-					aln_abspath = os.path.join(alnlist_dir_abspath, os.path.split(aln_filename.strip())[0], os.path.split(aln_filename.strip())[1])
-					group.append(basename)
-					if basename in aln_file_list.keys():
-						if aln_file_list[basename] != aln_abspath:
-							raise Exception("Found multiple alignment files with identical basename {}.".format(basename))
-					else:
-						# aln_file_list[basename] = aln_filename.strip()
-						aln_file_list[basename] = aln_abspath
-						abspath_group.append(aln_abspath)
-				gene_list.extend(group)
-				group_list.append(group)
-				abspath_aln_list.write("{}\n".format(",".join(abspath_group)))
 	preprocess_exe = os.path.join(os.getcwd(), "bin", "preprocess")
 	#for filename in hypothesis_filename_list:
 	for filename in file_dict['hypothesis_files']:
 		# Construct preprocessing command
 		# preprocess_cmd = "{}*{}*{}*{}*{}".format(preprocess_exe, os.path.join(os.getcwd(), filename), alnlist_filename, output_basename, options)
 		# preprocess_cmd = "{}*{}*{}*{}*{}".format(preprocess_exe, os.path.join(os.getcwd(), filename), os.path.join(os.getcwd(), args.output, "aln_list.txt"), output_basename, options)
-		preprocess_cmd = "{}*{}*{}*{}*{}".format(preprocess_exe, os.path.join(os.getcwd(), filename), os.path.join(os.getcwd(), args.output, "aln_list.txt"), output_basename, options)
+		preprocess_cmd = "{}*{}*{}*{}*{}".format(preprocess_exe, os.path.join(os.getcwd(), filename), os.path.join(os.getcwd(), args.aln_list), output_basename, options)
 		print(preprocess_cmd.replace("*"," "))
 		hypothesis_basename = os.path.splitext(os.path.basename(filename))[0]
 		if args.skip_preprocessing:
@@ -958,8 +938,8 @@ def check_memory(features_filename, output_name):
 	except:
 		raise Exception("Problem opening feature stats file {}.".format(stats_filename))
 	available_mem = psutil.virtual_memory().available
-	feature_mem = round(17 * int(stats["Samples"]) * int(stats["Features"]))
-	# feature_mem = round((17*10) * int(stats["Samples"]) * int(stats["Features"]))
+	# feature_mem = round(17 * int(stats["Samples"]) * int(stats["Features"]))
+	feature_mem = round((17*10*5) * int(stats["Samples"]) * int(stats["Features"]))
 	if available_mem < feature_mem:
 		msg = "Exceeding available memory will severely degrade performance, if you're sure you want to try anyways, rerun MyESL with the --disable_mc flag."
 		print("Total size of {} in memory ({} bytes) would exceed available memory of {} bytes.\n{}".format(features_filename, feature_mem, available_mem, msg))
@@ -1183,5 +1163,30 @@ def cleanup_directory(args, file_dict):
 				except:
 					pass
 
+
+def aln_list_to_absolute(aln_list, output):
+	# Convert all alignment paths in aln_list to absolute paths and write new alignment list to output/aln_list.txt
+	new_aln_list_filename = os.path.join(output, "aln_list.txt")
+	aln_file_list = {}
+	alnlist_dir, alnlist_filename = os.path.split(aln_list)
+	if alnlist_dir == "":
+		alnlist_dir = "."
+	alnlist_dir_abspath = os.path.abspath(alnlist_dir)
+	with open(new_aln_list_filename, 'w') as abspath_aln_list:
+		with open(aln_list) as file:
+			for line in file:
+				abspath_group = []
+				for aln_filename in line.strip().split(","):
+					basename = os.path.splitext(os.path.basename(aln_filename.strip()))[0]
+					aln_abspath = os.path.join(alnlist_dir_abspath, os.path.split(aln_filename.strip())[0], os.path.split(aln_filename.strip())[1])
+					if basename in aln_file_list.keys():
+						if aln_file_list[basename] != aln_abspath:
+							raise Exception("Found multiple alignment files with identical basename {}.".format(basename))
+					else:
+						# aln_file_list[basename] = aln_filename.strip()
+						aln_file_list[basename] = aln_abspath
+						abspath_group.append(aln_abspath)
+				abspath_aln_list.write("{}\n".format(",".join(abspath_group)))
+	return new_aln_list_filename
 
 
