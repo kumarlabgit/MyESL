@@ -51,7 +51,7 @@ if __name__ == '__main__':
 	parser.add_argument("--DrPhylo", help="Run Dr Phylo type analysis.", action='store_true', default=False)
 	parser.add_argument("--method", help="SGLasso type to use. Options are \"logistic\" or \"leastr\". Defaults to \"logistic\".", type=str, default="logistic")
 	parser.add_argument("--threads", help="Number of threads to use where applicable.", type=int, default=None)
-	parser.add_argument("--partitions", help="Number of group-wise partitions to split the data into initially.", type=int, default=None)
+	parser.add_argument("--subsets", help="Number of group-wise sub-sets to split the data into initially (Use 0 for automatic determination based on free memory).", type=int, default=None)
 
 
 	args = parser.parse_args()
@@ -112,6 +112,7 @@ if __name__ == '__main__':
 		args.single_lambda_pair = True
 
 	### Convert new parameter names to old ###
+	args.partitions = args.subsets
 	args.slep_sample_balance = False
 	args.upsample_balance = False
 	args.downsample_balance = False
@@ -164,13 +165,12 @@ if __name__ == '__main__':
 			try:  # run grid search on initial set, in a try block.
 				gs_files = pf.grid_search(args)
 			except Exception as e:  # if it fails, confirm that it failed because the dataset is too large for memory and set partitions accordingly, otherwise raise an error
-				e_msg, req_parts = str(e).split(":")
-				if e_msg != "Minimum required partitions":
+				if str(e).split(":")[0] != "Minimum required subsets":
 					raise Exception(e)
 				else:
-					args.partitions = math.ceil(float(req_parts))
+					args.partitions = math.ceil(float(str(e).split(":")[1]))
 					args.disable_mc = True
-					print("Data too large for available memory, setting partition count to {} and restarting.".format(args.partitions))
+					print("Data too large for available memory, setting subset count to {} and restarting.".format(args.partitions))
 			# if it succeeds, you're done
 		if args.partitions is not None and args.partitions > 1:
 			if gs_files is None:

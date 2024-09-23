@@ -407,7 +407,7 @@ def generate_input_matrices(args, file_dict):
 		new_files['features_files'] += [os.path.join(args.output, "feature_" + hypothesis_basename + ".txt")]
 		new_files['feature_mapping_files'] += [os.path.join(args.output, "feature_mapping_" + hypothesis_basename + ".txt")]
 	if partitions_max > 1.0:
-		raise Exception("Minimum required partitions:{}".format(partitions_max))
+		raise Exception("Minimum required subsets:{}".format(partitions_max))
 	with open(os.path.join(args.output, "missing_seqs_" + output_basename + ".txt"), "r") as file:
 		for ms_line in file:
 			ms_data = ms_line.strip().split("\t")
@@ -1010,7 +1010,8 @@ def generate_aln_partitions(aln_stats, partitions, aln_list):
 	group_sizes = [0 for i in range(0, partitions)]
 	aln_list_partition_files = []
 	shuffled_groups = list(aln_stats.keys())
-	random.shuffle(shuffled_groups)
+	# For the sake of reproducibility, don't actually shuffle
+	# random.shuffle(shuffled_groups)
 	group_idx = 0
 	if len(shuffled_groups) > 20 * partitions:
 		while group_idx < 0.7 * len(shuffled_groups):
@@ -1104,7 +1105,7 @@ def cleanup_directory(args, file_dict):
 				if len(fname_list[0]) == 1:
 					break
 	for fname in file_dict.get("GCS_median_files", []):
-		new_fname = os.path.join(os.path.split(fname)[0], "M-Grid_{}".format(os.path.split(fname)[1].replace("_{}_GCS_median".format(args.output), "")))
+		new_fname = os.path.join(os.path.split(fname)[0], "M-Grid_{}".format(os.path.split(fname)[1].replace("_GCS_median".format(args.output), "")))
 		if args.verbose:
 			print("Attempting to move {} to {}".format(fname, new_fname))
 		try:
@@ -1132,7 +1133,7 @@ def cleanup_directory(args, file_dict):
 		file_dict[file_type] = new_fnames
 	for fname_list in file_dict.get("weights_files", []):
 		for fname in fname_list:
-			new_fname = os.path.join(os.path.split(fname)[0], "MyESL_model_{}".format(os.path.split(fname)[1].replace("_{}_hypothesis_out_feature_weights".format(os.path.split(fname)[0]), "")))
+			new_fname = os.path.join(os.path.split(fname)[0], "MyESL_model_{}".format(os.path.split(fname)[1].replace("_hypothesis_out_feature_weights".format(os.path.split(fname)[0]), "")))
 			if args.verbose:
 				print("Attempting to move {} to {} (or delete it).".format(fname, new_fname))
 			try:
@@ -1145,7 +1146,7 @@ def cleanup_directory(args, file_dict):
 	for fname_list in file_dict.get("gene_prediction_files", []):
 		for fname in fname_list:
 			for temp_fname in [fname, "{}.png".format(os.path.splitext(fname)[0])]:
-				new_fname = os.path.join(os.path.split(temp_fname)[0], "GSC_{}".format(os.path.split(temp_fname)[1].replace("_{}_gene_predictions".format(os.path.split(temp_fname)[0]), "")))
+				new_fname = os.path.join(os.path.split(temp_fname)[0], "GSC_{}".format(os.path.split(temp_fname)[1].replace("_gene_predictions".format(os.path.split(temp_fname)[0]), "")))
 				if args.verbose:
 					print("Attempting to move {} to {} (or delete it)".format(fname, new_fname))
 				try:
