@@ -1,20 +1,20 @@
 # Evolutionary Sparse Learning with MyESL #
 
 ## Introduction ##
-MyESL is a set of programs written in C++ and Python designed to build an evolutionary sparse learning model for a phylogenetic hypothesis or binary classes of species with or without a phenotype. MyESL uses sparse group lasso regression to optimize weights for each position in the sequence alignments, quantifying the strength of association between a position and the hypothesis/class used in the analysis. MyESL also performs pre-possing of input data and processes ESL model outputs for further biological discoveries. MyESL is currently available as a standalone software `(MyESL.exe)` compatible with Windows and Linux operating systems. Moreover, it offers the option of installation via a Python environment to conduct ESL analysis. 
+MyESL is a set of programs written in C++ and Python designed to build an evolutionary sparse learning model for a phylogenetic hypothesis or binary classes of species with or without a phenotype. MyESL uses sparse group lasso regression to optimize weights for each position in the sequence alignments, quantifying the strength of association between a position and the hypothesis/class used in the analysis. MyESL also pre-posses input data and processes ESL model outputs for further biological discoveries. MyESL is currently available as a standalone software `(MyESL.exe)` compatible with Windows and Linux operating systems. Moreover, it offers the option of installation via a Python environment to conduct ESL analysis. 
 
 ## Implementation of MyESL ## 
 We discuss every required and optional argument for ESL analysis of an example dataset using MyESL software (MyESL.exe). Next, we will discuss installing MyESL in the Python environment.  
 
 ### Download ###
-You can download `MyESL` from the GitHub repository or use the command 
+You can download `MyESL` from the GitHub repository or use the command  
 
 	git clone https://github.com/kumarlabgit/MyESL MyESL
-	cd ESL
+	cd MyESL-master
 
 ### Usage ###
 
-One can perform ESL analysis using `MyESL.exe` after downloading and setting the current working directory to MyESL.  
+After downloading and setting the current working directory to MyESL, one can perform ESL analysis using `MyESL.exe.` The Fungi_data directory provides an example dataset. The directory contains 1,232 gene sequence alignments in fasta format. It also contains a phylogenetic tree of 86 fungi with clade IDs for two clades. The clade ID "Clade_X1" indicates a clade found to be fragile in a previous study (Sharma and Kumar 2024), and the clade "Control" was analyzed as a control clade previously.
 
 <br />
 
