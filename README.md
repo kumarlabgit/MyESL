@@ -37,13 +37,16 @@ MyESL.exe Fungi_data\aln.txt  --tree Fungi_data\Fungi_T1_with_ID.nwk --clade_lis
 
 It is always recommended to keep the number of species in both classes inside and outside the clade the same or at least approximately similar. However, if the number of species within the clade differs from those outside, MyESL provides a way to balance the species count within the clade. Two approaches are available for this purpose: phylogenetically aware subsampling for class balancing and class weighting. When the number of species within the clade exceeds that outside, class weighting is the preferred method. 
 
-```
+
 Phylogenetic-aware class balancing:
+
+```
 MyESL.exe Fungi_data\aln.txt  --tree Fungi_data\Fungi_T1_with_ID.nwk --clade_list\clade_X1.txt --lambda1 0.1 --lambda2 0.2 --class_bal phylo --output Fungi_out_clade_X1
-
+```
 Class balancing using inverse class weights:
-MyESL.exe Fungi_data\aln.txt  --tree Fungi_data\Fungi_T1_with_ID.nwk --clade_list\clade_Control.txt --lambda1 0.1 --lambda2 0.2 --class_bal weight --output Fungi_out_clade_Control
 
+```
+MyESL.exe Fungi_data\aln.txt  --tree Fungi_data\Fungi_T1_with_ID.nwk --clade_list\clade_Control.txt --lambda1 0.1 --lambda2 0.2 --class_bal weight --output Fungi_out_clade_Control
 ```
 
 An ESL model can also be made using a response file in the text format without providing the phylogenetic tree in newick format. The response in the text file assigns 1 for all species within a clade/ all species having a predefined trait. Others will receive -1. 
