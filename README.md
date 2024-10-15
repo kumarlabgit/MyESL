@@ -14,7 +14,7 @@ You can download `MyESL` from the GitHub repository or use the command
 
 ### Usage ###
 
-After downloading and setting the current working directory to MyESL, one can perform ESL analysis using `MyESL.exe.` The Fungi_data directory provides an example dataset. The directory contains 1,232 gene sequence alignments in fasta format. It also contains a phylogenetic tree of 86 fungi with clade IDs for two clades. The clade ID "Clade_X1" indicates a clade found to be fragile in a previous study (Sharma and Kumar 2024), and the clade "Control" was analyzed as a control clade previously.
+After downloading and setting the current working directory to MyESL, one can perform ESL analysis using `MyESL.exe.` The Fungi_data directory provides an example dataset. The directory contains 1,232 gene sequence alignments in fasta format. It also contains a phylogenetic tree of 86 fungi with clade IDs for two clades. The clade ID `Clade_X1` indicates a clade found to be fragile in a previous study (Sharma and Kumar 2024), and the clade `Control` was analyzed as a control clade previously.
 
 <br />
 
