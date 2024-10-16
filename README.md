@@ -254,5 +254,5 @@ To perform DrPhylo analysis, get the ESL package using the following on the comm
 If you use MyESL in your research, please cite our articles:
 
 1. Kumar, S. and Sharma, S (2021). Evolutionary Sparse Learning for Phylogenomics, Molecular Biology and Evolution, Volume 38, Issue 11, November 2021, Pages 4674–4682.
-2. Sharma, S. & Kumar, S. (2024). Discovering fragile clades and causal sequences in phylogenomics by evolutionary sparse learning. (In review)
+2. Sharma, S. & Kumar, S. (2024). Discovering fragile clades and causal sequences in phylogenomics by evolutionary sparse learning, Molecular Biology and Evolution, Volume 41, Issue 7, July 2024, Pages msae131.
 3. Sanderford et al., (2024).  MyESL: A software for evolutionary sparse learning in molecular phylogenetics and genomics (In preparation).
