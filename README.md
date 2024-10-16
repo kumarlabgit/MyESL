@@ -220,7 +220,13 @@ MyESL.exe Fungi_data\aln.txt  --tree Fungi_data\Fungi_T1_with_ID.nwk --clade_lis
 
 ### DrPhylo analysis using MyESL
 
-Users can perform DrPhylo analysis using MyESL. Instructions and Outputs for DrPhylo analysis will be found at [DrPhylo](https://github.com/kumarlabgit/MyESL/tree/DrPhylo). 
+Users can perform DrPhylo analysis using MyESL using the option `--DrPhylo`. For example, performing DrPhylo analysis using MyESL:
+
+```
+MyESL.exe Fungi_data\aln.txt  --tree Fungi_data\Fungi_T1_with_ID.nwk --clade_list\clade_X1.txt --DrPhylo --m_grid 20,20 --output Fungi_DrPhylo_out_clade_X1
+```
+
+More detailed instructions and outputs for DrPhylo analysis will be found at [DrPhylo](https://github.com/kumarlabgit/MyESL/tree/DrPhylo). 
 
 ### Installation of MyESL into Python ##
 
