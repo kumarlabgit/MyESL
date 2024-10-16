@@ -12,87 +12,17 @@ You can download `MyESL` from the GitHub repository or use the command
 	git clone https://github.com/kumarlabgit/MyESL MyESL
 	cd MyESL-master
 
-### Usage ###
-
-After downloading and setting the current working directory to MyESL, one can perform ESL analysis using `MyESL.exe.` The Fungi_data directory provides an example dataset. The directory contains 1,232 gene sequence alignments in fasta format. It also contains a phylogenetic tree of 86 fungi with clade IDs for two clades. The clade ID `Clade_X1` indicates a clade found to be fragile in a previous study (Sharma and Kumar 2024), and the clade `Control` was analyzed as a control clade previously.
-
-<br />
-
-```
-MyESL.exe Fungi_data\aln.txt  --tree Fungi_data\Fungi_T1_with_ID.nwk --lambda1 0.1 --lambda2 0.2 --output Fungi_out
-
-OR
-
-MyESL.exe alignment_list.txt  --classes classes.txt
-```
-<br />
-
-This command will produce two models for clades "Clade_X1" and "Control". The ESL model for individual clades can also be built using the option `--clade_list`. The clade model for the clade `Clade_X1` and `Control` can be made using the following command, respectively:
-
-```
-MyESL.exe Fungi_data\aln.txt  --tree Fungi_data\Fungi_T1_with_ID.nwk --clade_list\clade_X1.txt --lambda1 0.1 --lambda2 0.2 --output Fungi_out_clade_X1
-MyESL.exe Fungi_data\aln.txt  --tree Fungi_data\Fungi_T1_with_ID.nwk --clade_list\clade_Control.txt --lambda1 0.1 --lambda2 0.2 --output Fungi_out_clade_Control
-
-```
-
-It is always recommended to keep the number of species in both classes inside and outside the clade the same or at least approximately similar. However, if the number of species within the clade differs from those outside, MyESL provides a way to balance the species count within the clade. Two approaches are available for this purpose: phylogenetically aware subsampling for class balancing and class weighting. When the number of species within the clade exceeds that outside, class weighting is the preferred method. 
-
-
-Phylogenetic-aware class balancing:
-
-```
-MyESL.exe Fungi_data\aln.txt  --tree Fungi_data\Fungi_T1_with_ID.nwk --clade_list\clade_X1.txt --lambda1 0.1 --lambda2 0.2 --class_bal phylo --output Fungi_out_clade_X1
-```
-Class balancing using inverse class weights:
-
-```
-MyESL.exe Fungi_data\aln.txt  --tree Fungi_data\Fungi_T1_with_ID.nwk --clade_list\clade_X1.txt --lambda1 0.1 --lambda2 0.2 --class_bal weight --output Fungi_out_clade_X1
-```
-
-An ESL model can also be built using a text-based response file without requiring a phylogenetic tree in Newick format. In the response file, species within a clade or those with a predefined trait are assigned a value of 1, while all others are assigned -1. A response file was created for the clade "Clade_X1" in the `Fungi_data` directory. 
-
-```
-MyESL.exe Fungi_data\aln.txt  --classes Fungi_data\Clade_X1.txt --clade_list\clade_Control.txt --lambda1 0.1 --lambda2 0.2 --class_bal weight --output Fungi_out_clade_X1
-```
-
-In the previous examples, all models were built using predefined site and group sparsity parameter values. Users can also create a consensus ESL model by combining multiple models built with sparsity parameter values ranging from 0 to 1, with a step size of 0.1. Additionally, users can customize the range of lambda values and the step size.
-
-An ensemble ESL model without specifying the range of sparsity parameter values:
-
-```
-MyESL.exe Fungi_data\aln.txt  --tree Fungi_data\Fungi_T1_with_ID.nwk --clade_list\clade_X1.txt --class_bal weight --output Fungi_out_clade_X1
-```
-
-An ensemble ESL model by specifying the range of sparsity parameter values. The site (`lambda1`) and group (`lambda2`) sparsity parameters with a range from 0.1 to 0.9 with a step size of 0.1:
-
-```
-MyESL.exe Fungi_data\aln.txt  --tree Fungi_data\Fungi_T1_with_ID.nwk --lambda1_grid 0.1,0.9,0.1 --lambda2_grid 0.1,0.9,0.1 --clade_list\clade_X1.txt --class_bal weight --output Fungi_out_clade_X1
-```
-
-MyESL produces multiple numeric outputs and a graphical output. The numeric outputs include different sparsity scores that quantify the association between features (e.g., bits, sites, genes) and hypotheses tested. The model also calculates the hypothesis sparsity scores (HSS), providing overall support for the hypothesis tested. MyESL usually produces all these scores in a text file format by default. However, users can specify which sparsity scores need to be produced by MyESL using the option `--stats.`
-
-MyESL outputs only gene and site sparsity scores by using the argument `--stats GS`:
-
-```
-MyESL.exe Fungi_data\aln.txt  --tree Fungi_data\Fungi_T1_with_ID.nwk --clade_list\clade_X1.txt --lambda1 0.1 --lambda2 0.2 --class_bal phylo --stats SG --output Fungi_out_clade_X1
-```
-
-The graphical output is a grid, with each row representing the species (with normalized classification probability within the parenthesis) used in the analysis and columns for genes selected by the ESL model. Each cell in the grid is the gene-species concordance (GSC) score. A positive value for the gsc implies that the gene supports the placement of the species within the clade and is presented in green. In contrast, the negative value indicates discordance, represented by red. Users can modify the grid output by specifying the number of genes and the number of species to be displayed using the option ``--m_grid``. In this case, only a specified number of species from the clade of interest will be displayed and sorted using the classification probability. 
-
-```
-MyESL.exe Fungi_data\aln.txt  --tree Fungi_data\Fungi_T1_with_ID.nwk --clade_list\clade_X1.txt --lambda1 0.1 --lambda2 0.2 --class_bal phylo --stats SG --m_grid 20,20 --output Fungi_out_clade_X1
-```
-
+ 
 ### Required arguments:
 
 <br />
 
 ```
 
-alignment_list.txt                       : A text file contains a list of paths for all sequence alignments. For example,
-                                           angiosperm_alns/7276_C12.fasta
-                                           angiosperm_alns/5111_C12.fasta
-                                           angiosperm_alns/5507_C12.fasta
+alignment_list.txt                       : A text file contains a list of paths for all sequence alignments. For example, sequence alignments from the fungi dataset provided within the `Fungi_data` directory:
+                                           aln\BUSCOfEOG7008JB.fasta 
+                                           aln\BUSCOfEOG7008JM.fasta 
+                                           aln\BUSCOfEOG7008JT.fasta 
 
 --tree <phylogenetic_tree.nwk>           : A phylogenetic tree in newick format with a node ID to construct a hypothesis for the clade of interest.
                                            The hypothesis can also be specified with a separate file using the --classes parameter.
@@ -216,6 +146,77 @@ SPS_SPP_{clade_ID}_summary.txt     : A tab-separated text file containing specie
 Note: l1 and l2 refer to site and group sparsity parameters used for model building in grid search.
 ```
 <br />
+
+### Usage ###
+
+After downloading and setting the current working directory to MyESL, one can perform ESL analysis using `MyESL.exe.` The Fungi_data directory provides an example dataset. The directory contains 1,232 gene sequence alignments in fasta format. It also contains a phylogenetic tree of 86 fungi with clade IDs for two clades. The clade ID `Clade_X1` indicates a clade found to be fragile in a previous study (Sharma and Kumar 2024), and the clade `Control` was analyzed as a control clade previously.
+
+<br />
+
+```
+MyESL.exe Fungi_data\aln.txt  --tree Fungi_data\Fungi_T1_with_ID.nwk --lambda1 0.1 --lambda2 0.2 --output Fungi_out
+
+OR
+
+MyESL.exe alignment_list.txt  --classes classes.txt
+```
+<br />
+
+This command will produce two models for clades "Clade_X1" and "Control". The ESL model for individual clades can also be built using the option `--clade_list`. The clade model for the clade `Clade_X1` and `Control` can be made using the following command, respectively:
+
+```
+MyESL.exe Fungi_data\aln.txt  --tree Fungi_data\Fungi_T1_with_ID.nwk --clade_list\clade_X1.txt --lambda1 0.1 --lambda2 0.2 --output Fungi_out_clade_X1
+MyESL.exe Fungi_data\aln.txt  --tree Fungi_data\Fungi_T1_with_ID.nwk --clade_list\clade_Control.txt --lambda1 0.1 --lambda2 0.2 --output Fungi_out_clade_Control
+
+```
+
+It is always recommended to keep the number of species in both classes inside and outside the clade the same or at least approximately similar. However, if the number of species within the clade differs from those outside, MyESL provides a way to balance the species count within the clade. Two approaches are available for this purpose: phylogenetically aware subsampling for class balancing and class weighting. When the number of species within the clade exceeds that outside, class weighting is the preferred method. 
+
+
+Phylogenetic-aware class balancing:
+
+```
+MyESL.exe Fungi_data\aln.txt  --tree Fungi_data\Fungi_T1_with_ID.nwk --clade_list\clade_X1.txt --lambda1 0.1 --lambda2 0.2 --class_bal phylo --output Fungi_out_clade_X1
+```
+Class balancing using inverse class weights:
+
+```
+MyESL.exe Fungi_data\aln.txt  --tree Fungi_data\Fungi_T1_with_ID.nwk --clade_list\clade_X1.txt --lambda1 0.1 --lambda2 0.2 --class_bal weight --output Fungi_out_clade_X1
+```
+
+An ESL model can also be built using a text-based response file without requiring a phylogenetic tree in Newick format. In the response file, species within a clade or those with a predefined trait are assigned a value of 1, while all others are assigned -1. A response file was created for the clade "Clade_X1" in the `Fungi_data` directory. 
+
+```
+MyESL.exe Fungi_data\aln.txt  --classes Fungi_data\Clade_X1.txt --clade_list\clade_Control.txt --lambda1 0.1 --lambda2 0.2 --class_bal weight --output Fungi_out_clade_X1
+```
+
+In the previous examples, all models were built using predefined site and group sparsity parameter values. Users can also create a consensus ESL model by combining multiple models built with sparsity parameter values ranging from 0 to 1, with a step size of 0.1. Additionally, users can customize the range of lambda values and the step size.
+
+An ensemble ESL model without specifying the range of sparsity parameter values:
+
+```
+MyESL.exe Fungi_data\aln.txt  --tree Fungi_data\Fungi_T1_with_ID.nwk --clade_list\clade_X1.txt --class_bal weight --output Fungi_out_clade_X1
+```
+
+An ensemble ESL model by specifying the range of sparsity parameter values. The site (`lambda1`) and group (`lambda2`) sparsity parameters with a range from 0.1 to 0.9 with a step size of 0.1:
+
+```
+MyESL.exe Fungi_data\aln.txt  --tree Fungi_data\Fungi_T1_with_ID.nwk --lambda1_grid 0.1,0.9,0.1 --lambda2_grid 0.1,0.9,0.1 --clade_list\clade_X1.txt --class_bal weight --output Fungi_out_clade_X1
+```
+
+MyESL produces multiple numeric outputs and a graphical output. The numeric outputs include different sparsity scores that quantify the association between features (e.g., bits, sites, genes) and hypotheses tested. The model also calculates the hypothesis sparsity scores (HSS), providing overall support for the hypothesis tested. MyESL usually produces all these scores in a text file format by default. However, users can specify which sparsity scores need to be produced by MyESL using the option `--stats.`
+
+MyESL outputs only gene and site sparsity scores by using the argument `--stats GS`:
+
+```
+MyESL.exe Fungi_data\aln.txt  --tree Fungi_data\Fungi_T1_with_ID.nwk --clade_list\clade_X1.txt --lambda1 0.1 --lambda2 0.2 --class_bal phylo --stats SG --output Fungi_out_clade_X1
+```
+
+The graphical output is a grid, with each row representing the species (with normalized classification probability within the parenthesis) used in the analysis and columns for genes selected by the ESL model. Each cell in the grid is the gene-species concordance (GSC) score. A positive value for the gsc implies that the gene supports the placement of the species within the clade and is presented in green. In contrast, the negative value indicates discordance, represented by red. Users can modify the grid output by specifying the number of genes and the number of species to be displayed using the option ``--m_grid``. In this case, only a specified number of species from the clade of interest will be displayed and sorted using the classification probability. 
+
+```
+MyESL.exe Fungi_data\aln.txt  --tree Fungi_data\Fungi_T1_with_ID.nwk --clade_list\clade_X1.txt --lambda1 0.1 --lambda2 0.2 --class_bal phylo --stats SG --m_grid 20,20 --output Fungi_out_clade_X1
+```
 
 ### DrPhylo analysis using MyESL
 
