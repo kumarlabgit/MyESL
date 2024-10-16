@@ -46,10 +46,28 @@ MyESL.exe Fungi_data\aln.txt  --tree Fungi_data\Fungi_T1_with_ID.nwk --clade_lis
 Class balancing using inverse class weights:
 
 ```
-MyESL.exe Fungi_data\aln.txt  --tree Fungi_data\Fungi_T1_with_ID.nwk --clade_list\clade_Control.txt --lambda1 0.1 --lambda2 0.2 --class_bal weight --output Fungi_out_clade_Control
+MyESL.exe Fungi_data\aln.txt  --tree Fungi_data\Fungi_T1_with_ID.nwk --clade_list\clade_X1.txt --lambda1 0.1 --lambda2 0.2 --class_bal weight --output Fungi_out_clade_X1
 ```
 
-An ESL model can also be made using a response file in the text format without providing the phylogenetic tree in newick format. The response in the text file assigns 1 for all species within a clade/ all species having a predefined trait. Others will receive -1. 
+An ESL model can also be built using a text-based response file without requiring a phylogenetic tree in Newick format. In the response file, species within a clade or those with a predefined trait are assigned a value of 1, while all others are assigned -1. A response file was created for the clade "Clade_X1" in the `Fungi_data` directory. 
+
+```
+MyESL.exe Fungi_data\aln.txt  --classes Fungi_data\Clade_X1.txt --clade_list\clade_Control.txt --lambda1 0.1 --lambda2 0.2 --class_bal weight --output Fungi_out_clade_X1
+```
+
+In the previous examples, all models were built using predefined site and group sparsity parameter values. Users can also create a consensus ESL model by combining multiple models built with sparsity parameter values ranging from 0 to 1, with a step size of 0.1. Additionally, users can customize the range of lambda values and the step size.
+
+An ensemble ESL model without specifying the range of sparsity parameter values:
+
+```
+MyESL.exe Fungi_data\aln.txt  --tree Fungi_data\Fungi_T1_with_ID.nwk --clade_list\clade_X1.txt --class_bal weight --output Fungi_out_clade_X1
+```
+
+An ensemble ESL model by specifying the range of sparsity parameter values. The site (`lambda1`) and group (`lambda2`) sparsity parameters with a range from 0.1 to 0.9 with a step size of 0.1:
+
+```
+MyESL.exe Fungi_data\aln.txt  --tree Fungi_data\Fungi_T1_with_ID.nwk --lambda1_grid 0.1,0.9,0.1 --lambda2_grid 0.1,0.9,0.1 --clade_list\clade_X1.txt --class_bal weight --output Fungi_out_clade_X1
+```
 
 
 ### Required arguments:
