@@ -110,7 +110,7 @@ DrPhylo outputs a model grid (```M-grid```) and a text file in a matrix format c
 
 ### Model grid from DrPhylo
 
-DrPhylo also generates outputs an ensemble clade model along with other numeric outputs like site sparsity scores (SSS), gene sparsity scores (GSS) etc.,:
+DrPhylo outputs a model grid of the ensemble clade model along with other numeric outputs like site sparsity scores (SSS), and gene sparsity scores (GSS), etc.,:
 
 ```
 
