@@ -108,6 +108,21 @@ DrPhylo outputs a model grid (```M-grid```) and a text file in a matrix format c
 ```
 <br />	
 
+### Model grid from DrPhylo
+
+DrPhylo also generates outputs an ensemble clade model along with other numeric outputs like site sparsity scores (SSS), gene sparsity scores (GSS) etc.,:
+
+```
+
+M-Grid_{clade_ID}.txt : Dataframe containing GSC, SCP, and CP.
+
+M-Grid_{clade_ID}.png : Grid representation of the ensemble clade model using *_GSC_median.txt. This visualization will also contain SCP for all species in the clade of interest.
+                                       The taxa with the lowest SCP will be at the top of the grid, and the lowest SCP for the clade is defined as the CP for the clade of interest. 
+
+```
+Note: The `{clade_ID}` will be replaced by the text file name when the `--classes` option is used for providing a user-defined phylogenetic hypothesis. In addition, DrPhylo generates summary files of Gene (GSS), Position (PSS), and Hypothesis (HSS) sparsity scores along with species prediction and probability score (SPS_SPP).
+
+
 ## DrPhylo implementation using an example Fungi dataset in Windows ##
 
 After finishing the setup, change the directory to `DrPhylo-master`. To create a text file containing the list of paths for all gene sequence alignments: 
@@ -129,16 +144,44 @@ MyESL.exe Fungi_data/aln.txt --tree Fungi_data/Fungi_T1.nwk --DrPhylo --output F
 ```
 <br />
 
+Users can also perform `DrPhylo` analysis for a single clade using the option `--clade_list`:
+
+```
+MyESL.exe Fungi_data\aln.txt  --tree Fungi_data\Fungi_T1_with_ID.nwk --clade_list\clade_X1.txt --DrPhylo --output Fungi_out_clade_X1
+MyESL.exe Fungi_data\aln.txt  --tree Fungi_data\Fungi_T1_with_ID.nwk --clade_list\clade_Control.txt --DrPhylo --output Fungi_out_clade_Control
+
+```
+It is always recommended to keep the number of species in both classes inside and outside the clade the same or at least approximately similar. However, if the number of species within the clade differs from those outside, MyESL provides a way to balance the species count. Two approaches are available: phylogenetically aware subsampling for class balancing and weighting. Class weighting is the preferred method when the number of species within the clade exceeds that outside. 
+
+
+Phylogenetic-aware class balancing:
+
+```
+MyESL.exe Fungi_data\aln.txt  --tree Fungi_data\Fungi_T1_with_ID.nwk --clade_list\clade_X1.txt --DrPhylo --class_bal phylo --output Fungi_DrPhylo_out_clade_X1
+```
+Class balancing using inverse class weights:
+
+```
+MyESL.exe Fungi_data\aln.txt  --tree Fungi_data\Fungi_T1_with_ID.nwk --clade_list\clade_X1.txt --DrPhylo --class_bal weight --output Fungi_DrPhylo_out_clade_X1
+```
+<br />
 DrPhylo analysis using a user-defined hypothesis, producing a single clade model for the given hypothesis:
 <br />
 
 ```
-MyESL.exe Fungi_data/aln.txt --classes Fungi_data/A_B_Hyp.txt --DrPhylo --output Fungi_test_output 
+MyESL.exe Fungi_data/aln.txt --classes Fungi_data/A_B_Hyp.txt --DrPhylo --output Fungi_DrPhylo_A_B_hyp_output 
 
 ```
 <br />
 
-DrPhylo analysis for building an ensemble clade model for a user-defined hypothesis using the grid search option. The site and gene sparsity score range from 0.05 to 0.1 and a step size of 0.05:
+DrPhylo ensembles multiple ESL models containing at least three (3) genes or more. ESL models with less than three genes are not used for summarization. Users can specify the minimum of genes they want to retain in the models for summarization. A large number reduces the number of models to be used, while a small number increases the number of models to be built. 
+
+```
+MyESL.exe Fungi_data/aln.txt --classes Fungi_data/A_B_Hyp.txt --DrPhylo --min_groups 5 --output Fungi_DrPhylo_A_B_hyp_output 
+
+```
+
+In previous examples, DrPhylo produces multiple ESL models using a set of sparsity parameters (lambda1 and lambda2) that range from 0.1 to 0.9 with a step size of 0.1. Users can also define the range of sparsity penalties and step size. DrPhylo analysis for building an ensemble clade model for a user-defined hypothesis using the grid search option. The site and gene sparsity score range from 0.05 to 0.1 and a step size of 0.05:
 <br />
 
 ```
@@ -147,59 +190,21 @@ MyESL.exe Fungi_data/aln.txt --classes Fungi_data/A_B_Hyp.txt --DrPhylo --lambda
 ```
 <br />
 
-## DrPhylo implementation using an example Fungi dataset in Windows ##
+DrPhylo produces multiple numeric outputs and a graphical output. The numeric outputs include different sparsity scores that quantify the association between features (e.g., bits, sites, genes) and hypotheses tested. The model also calculates the hypothesis sparsity scores (HSS), providing overall support for the hypothesis tested. DrPhylo usually produces all these scores in a text file format by default, and these scores are summaries for all ESL models for the clade. However, users can specify which sparsity scores need to be produced by DrPhylo using the option `--stats.` 
 
-After finishing the setup, change the directory to `DrPhylo-master`. To create a text file containing the list of paths for all gene sequence alignments: 
-```
-cd Fungi_data
-ls angiosperm_alns/*.fasta > angiosperm_100_sample_alns.txt
-cd ..
-```
-<br />
-<br />
-
-DrPhylo analysis for building clade models for two labeled clades, producing a result set for each of two hypotheses generated from the input tree:
-<br />
-<br />
+DrPhylo outputs only gene and site sparsity scores by using the argument `--stats GS`:
 
 ```
-MyESL.exe sample_files/angiosperm_100_sample_alns.txt --tree sample_files/ESL_test.nwk --DrPhylo --output sample_tree_output  
-
-```
-<br />
-
-DrPhylo analysis using a user-defined hypothesis, producing a single clade model for the given hypothesis:
-<br />
-
-```
-MyESL.exe sample_files/angiosperm_100_sample_alns.txt --classes sample_files/test_pred.txt --DrPhylo --output sample_tree_output 
-
-```
-<br />
-
-DrPhylo analysis for building an ensemble clade model for a user-defined hypothesis using the grid search option. The site and gene sparsity score range from 0.05 to 0.1 and a step size of 0.05:
-<br />
-
-```
-MyESL.exe sample_files/angiosperm_100_sample_alns.txt --classes sample_files/test_pred.txt --DrPhylo --lambda1_grid 0.05,0.1,0.05 --lambda2_grid 0.05,0.1,0.05 --output sample_grid2x2_output 
-
-```
-<br />
-
-
-### Model grid from DrPhylo
-
-DrPhylo also generates outputs an ensemble clade model when the grid search option is used:
+MyESL.exe Fungi_data/aln.txt --classes Fungi_data/A_B_Hyp.txt --DrPhylo -- stats GS --output Fungi_test_grid_output 
 
 ```
 
-M-Grid_{clade_ID}.txt : Dataframe containing GSC, SCP, and CP.
-
-M-Grid_{clade_ID}.png : Grid representation of the ensemble clade model using *_GSC_median.txt. This visualization will also contain SCP for all species in the clade of interest.
-                                       The taxa with the lowest SCP will be at the top of the grid, and the lowest SCP for the clade is defined as the CP for the clade of interest. 
+The graphical output is a model grid, with each row representing the species (with normalized classification probability; CP within the parenthesis) within the clade used in the analysis and columns for genes selected by the ESL model. Each cell in the grid is the gene-species concordance (GSC) score. The model grid (M_grid) summarizes all ESL models built for the clade of interest. A positive value for the gsc implies that the gene supports the placement of the species within the clade and is presented in green. In contrast, the negative value indicates discordance, represented by red. Users can modify the grid output by specifying the number of genes and the number of species to be displayed using the option ``--m_grid``. In this case, only a specified number of species from the clade of interest will be displayed and sorted using the classification probability. 
 
 ```
-Note: The `{clade_ID}` will be replaced by the text file name when the `--classes` option is used for providing a user-defined phylogenetic hypothesis. In addition, DrPhylo generates summary files of Gene (GSS), Position (PSS), and Hypothesis (HSS) sparsity scores along with species prediction and probability score (SPS_SPP).
+MyESL.exe Fungi_data/aln.txt --classes Fungi_data/A_B_Hyp.txt --DrPhylo -- stats GS --m_grid 20,20 --output Fungi_test_grid_output 
+
+```
 
 ## Installation of MyESL into Python for DrPhylo analysis ##
 
@@ -220,6 +225,10 @@ To perform DrPhylo analysis, get the ESL package using the following on the comm
 	git clone -b grid_search https://github.com/kumarlabgit/ESL ESL
 	cd ESL
 	bash setup.sh
+
+#### In Python, the DrPhylo pipeline in MyESL uses the same directives as MyESL.exe. To perform an analysis using the example dataset, only replacing `MyESL.exe` with `MyESL.py`
+
+#### More detailed instructions and outputs for MyESL analysis will be found at [MyESL](https://github.com/kumarlabgit/MyESL/tree/master). 
 
 ## References ##
 If you use DrPhylo in your research, please cite our articles:
