@@ -69,6 +69,19 @@ An ensemble ESL model by specifying the range of sparsity parameter values. The 
 MyESL.exe Fungi_data\aln.txt  --tree Fungi_data\Fungi_T1_with_ID.nwk --lambda1_grid 0.1,0.9,0.1 --lambda2_grid 0.1,0.9,0.1 --clade_list\clade_X1.txt --class_bal weight --output Fungi_out_clade_X1
 ```
 
+MyESL produces multiple numeric outputs and a graphical output. The numeric outputs include different sparsity scores that quantify the association between features (e.g., bits, sites, genes) and hypotheses tested. The model also calculates the hypothesis sparsity scores (HSS), providing overall support for the hypothesis tested. MyESL usually produces all these scores in a text file format by default. However, users can specify which sparsity scores need to be produced by MyESL using the option `--stats.`
+
+MyESL outputs only gene and site sparsity scores by using the argument `--stats GS`:
+
+```
+MyESL.exe Fungi_data\aln.txt  --tree Fungi_data\Fungi_T1_with_ID.nwk --clade_list\clade_X1.txt --lambda1 0.1 --lambda2 0.2 --class_bal phylo --stats SG --output Fungi_out_clade_X1
+```
+
+The graphical output is a grid, with each row representing the species (with normalized classification probability within the parenthesis) used in the analysis and columns for genes selected by the ESL model. Each cell in the grid is the gene-species concordance (GSC) score. A positive value for the gsc implies that the gene supports the placement of the species within the clade and is presented in green. In contrast, the negative value indicates discordance, represented by red. Users can modify the grid output by specifying the number of genes and the number of species to be displayed using the option ``--m_grid``. In this case, only a specified number of species from the clade of interest will be displayed and sorted using the classification probability. 
+
+```
+MyESL.exe Fungi_data\aln.txt  --tree Fungi_data\Fungi_T1_with_ID.nwk --clade_list\clade_X1.txt --lambda1 0.1 --lambda2 0.2 --class_bal phylo --stats SG --m_grid 20,20 --output Fungi_out_clade_X1
+```
 
 ### Required arguments:
 
