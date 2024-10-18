@@ -9,8 +9,8 @@ We discuss every required and optional argument for ESL analysis of an example d
 ### Download ###
 You can download `MyESL` from the GitHub repository or use the command  
 
-	git clone https://github.com/kumarlabgit/MyESL MyESL
-	cd MyESL-master
+	git clone https://github.com/kumarlabgit/MyESL
+	cd MyESL
 
  
 ### Required arguments:
@@ -74,7 +74,7 @@ Users can also specify other options in MyESL for processing the input data, bui
 
 --lambda2 <float>                    : The gene sparsity parameter ranges from 0 to 1, and the default is 0.1 when not specified. It is required to build a single-clade model.
 
---lambda1_range <min,max,step>        : This option allows users to set the range for the site sparsity parameter. The site sparsity grid is defined by a string of float numbers min, max, and step_size, which range from 0 to 1.
+--lambda1_grid <min,max,step>        : This option allows users to set the range for the site sparsity parameter. The site sparsity grid is defined by a string of float numbers min, max, and step_size, which range from 0 to 1.
                                        For example, --lambda1_grid 0.1,0.9,0.1. This option must be used with --lambda2_grid.  
 
 --lambda2_grid <min,max,step>        : This option allows users to set the range for the group sparsity parameter. The group sparsity grid is defined by a string of float numbers min, max, and step_size, which range from 0 to 1.
@@ -228,9 +228,9 @@ MyESL.exe Fungi_data\aln.txt  --tree Fungi_data\Fungi_T1_with_ID.nwk --clade_lis
 
 More detailed instructions and outputs for DrPhylo analysis will be found at [DrPhylo](https://github.com/kumarlabgit/MyESL/tree/DrPhylo). 
 
-### Installation of MyESL into Python ##
+### Installation of MyESL into Python for Linux systems ##
 
-To run MyESL, you will need Python 3.8 or later installed, as well as the following Python libraries:
+To run MyESL on Linux, you will need Python 3.8 or later installed, as well as the following Python libraries:
 ```R
 numpy
 biopython
@@ -244,11 +244,10 @@ You can install these libraries using pip:
 
 To perform DrPhylo analysis, get the ESL package using the following on the command line:
 
-	git clone -b master https://github.com/kumarlabgit/MyESL MyESL
+	git clone https://github.com/kumarlabgit/MyESL
 	cd MyESL
-	bash setup.sh
 
-#### MyESL pipeline uses the same directives as MyESL.exe. To perform an analysis using the example dataset, only replacing `MyESL.exe` with `MyESL.py`
+#### MyESL pipeline uses the same directives as MyESL.exe. To perform an analysis using the example dataset, only replacing `MyESL.exe` with `python MyESL.py`
 
 ## References ##
 If you use MyESL in your research, please cite our articles:

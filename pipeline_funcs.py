@@ -351,7 +351,10 @@ def generate_input_matrices(args, file_dict):
 	preprocess_cwd = os.path.split(args.output)[0]
 	if preprocess_cwd == "":
 		preprocess_cwd = "."
-	preprocess_exe = os.path.join(os.getcwd(), "bin", "preprocess")
+	if os.name == "posix":
+		preprocess_exe = os.path.join(os.getcwd(), "bin", "preprocess")
+	else:
+		preprocess_exe = os.path.join(os.getcwd(), "bin", "preprocess.exe")
 	#for filename in hypothesis_filename_list:
 	for filename in file_dict['hypothesis_files']:
 		# Construct preprocessing command
@@ -445,7 +448,10 @@ def run_sg_lasso(args, file_dict):
 		method = "overlapping_sg_lasso_logisticr"
 	else:
 		raise Exception("Provided method name not recognized, please provide a valid method name.")
-	esl_exe = os.path.join(os.getcwd(), "bin", method)
+	if os.name == "posix":
+		esl_exe = os.path.join(os.getcwd(), "bin", "{}".format(method))
+	else:
+		esl_exe = os.path.join(os.getcwd(), "bin", "{}.exe".format(method))
 	lambda_list = []
 	with open(file_dict["lambda_list_file"][0], 'r') as file:
 		for line in file:
