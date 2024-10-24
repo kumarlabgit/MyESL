@@ -66,6 +66,7 @@ if __name__ == '__main__':
 	args.sparsify = False
 	args.grid_threads = None
 	## End cruft ##
+	args.debug = True
 
 	if args.threads is None:
 		args.threads = os.cpu_count()
@@ -109,7 +110,8 @@ if __name__ == '__main__':
 	if args.lambda1_grid is None and args.lambda2_grid is None:
 		args.lambda1_grid = "{},{},{}".format(args.lambda1, args.lambda1 + 0.00001, 0.00002)
 		args.lambda2_grid = "{},{},{}".format(args.lambda2, args.lambda2 + 0.00001, 0.00002)
-		args.single_lambda_pair = True
+		# Disabled because it breaks subsetting
+		# args.single_lambda_pair = True
 
 	### Convert new parameter names to old ###
 	args.partitions = args.subsets
@@ -180,12 +182,13 @@ if __name__ == '__main__':
 			# generate partitions# alignment file list files and matching modified copies of args to match
 			# aln_list_partitions = pf.generate_aln_partitions(aln_stats, args.partitions, args.aln_list)
 			aln_list_partitions = pf.generate_aln_partitions(aln_stats, args.partitions, os.path.join(args.output, "aln_list.txt"))
+			combo_count = int((args.partitions / 2) * (args.partitions - 1))
 			# run grid_search separately for each hypothesis
 			final_gs_files = [{} for j in range(0, len(gs_files['hypothesis_files']))]
 			try:
 				for j in range(0, len(gs_files['hypothesis_files'])):
 					# run grid_search on each partition
-					part_gs_files = [{} for i in range(0, args.partitions)]
+					part_gs_files = [{} for i in range(0, combo_count)]
 					part_args = copy.deepcopy(args)
 					part_args.timers = args.timers
 					part_args.stats_out = "G"
@@ -193,7 +196,7 @@ if __name__ == '__main__':
 					shutil.copy(gs_files['hypothesis_files'][j], os.path.join(args.output, os.path.basename(gs_files['hypothesis_files'][j]).replace("_hypothesis.txt".format(args.output), ".txt")))
 					part_args.response = os.path.join(args.output, os.path.basename(gs_files['hypothesis_files'][j]).replace("_hypothesis.txt".format(args.output), ".txt"))
 					part_args.kfold_ids = gs_files['hypothesis_files'][j]
-					for i in range(0, args.partitions):
+					for i in range(0, combo_count):
 						part_args.output = os.path.join(args.output, "{}_part{}".format(os.path.basename(args.output), i))
 						part_args.partitions = 1
 						part_args.aln_list = aln_list_partitions[i]
@@ -209,7 +212,7 @@ if __name__ == '__main__':
 						pct_select = pct_select * 0.9
 						selected_proteins = []
 						selected_groups = []
-						for i in range(0, args.partitions):
+						for i in range(0, combo_count):
 							GSS_file = part_gs_files[i]['GSS_median_files'][0]
 							selected_proteins += pf.select_top_gss(GSS_file, pct_select)
 						selected_size = 0
@@ -233,12 +236,12 @@ if __name__ == '__main__':
 					part_args.stats_out = args.stats_out
 					final_gs_files[j] = pf.grid_search(part_args)
 					os.remove(gs_files['hypothesis_files'][j].replace("_hypothesis.txt".format(args.output), ".txt"))
-					for i in range(0, args.partitions):
+					for i in range(0, combo_count):
 						pf.cleanup_directory(args, part_gs_files[i])
 					pf.cleanup_directory(args, final_gs_files[j])
 				# pf.cleanup_directory(args, gs_files)
 				for filename in os.listdir(args.output):
-					if os.path.splitext(filename)[1] == ".txt" and os.path.exists(os.path.join(args.output, filename)):
+					if os.path.splitext(filename)[1] == ".txt" and os.path.exists(os.path.join(args.output, filename)) and not args.debug:
 						os.remove(os.path.join(args.output, filename))
 			except Exception as e:
 				raise Exception(e)

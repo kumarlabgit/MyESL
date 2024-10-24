@@ -409,7 +409,7 @@ def generate_input_matrices(args, file_dict):
 		#features_file_list.append(os.path.join(args.output, "feature_" + hypothesis_basename + ".txt"))
 		new_files['features_files'] += [os.path.join(args.output, "feature_" + hypothesis_basename + ".txt")]
 		new_files['feature_mapping_files'] += [os.path.join(args.output, "feature_mapping_" + hypothesis_basename + ".txt")]
-	if partitions_max > 1.0:
+	if partitions_max > 2.0:
 		raise Exception("Minimum required subsets:{}".format(partitions_max))
 	with open(os.path.join(args.output, "missing_seqs_" + output_basename + ".txt"), "r") as file:
 		for ms_line in file:
@@ -944,13 +944,13 @@ def check_memory(features_filename, output_name):
 	except:
 		raise Exception("Problem opening feature stats file {}.".format(stats_filename))
 	available_mem = psutil.virtual_memory().available
-	feature_mem = round(17 * int(stats["Samples"]) * int(stats["Features"]))
-	# feature_mem = round((17*10*5) * int(stats["Samples"]) * int(stats["Features"]))
+	feature_mem = round(12 * int(stats["Samples"]) * int(stats["Features"]))
+	# feature_mem = round((12*10*5) * int(stats["Samples"]) * int(stats["Features"]))
 	if available_mem < feature_mem:
 		msg = "Exceeding available memory will severely degrade performance, if you're sure you want to try anyways, rerun MyESL with the --disable_mc flag."
 		print("Total size of {} in memory ({} bytes) would exceed available memory of {} bytes.\n{}".format(features_filename, feature_mem, available_mem, msg))
 		#raise Exception("Total size of {} in memory ({} bytes) would exceed available memory of {} bytes.\n{}".format(features_filename, feature_mem, available_mem, msg))
-	return max(1.0, float(feature_mem)/float(available_mem))
+	return max(2.0, float(feature_mem * 2)/float(available_mem))
 
 
 def calculate_position_stats(aln_filename, hypothesis_filename):
@@ -1010,7 +1010,9 @@ def stat_aln_files(aln_list):
 	return file_stats
 
 
-def generate_aln_partitions(aln_stats, partitions, aln_list):
+def generate_aln_partitions(aln_stats, partitions, aln_list, combo_size=2):
+	if partitions == combo_size:
+		raise Exception("Partition count({}) must be larger than combo_size({}).".format(partitions, combo_size))
 	dir, basename = os.path.split(aln_list)
 	group_lists = [[] for i in range(0, partitions)]
 	group_sizes = [0 for i in range(0, partitions)]
@@ -1030,11 +1032,23 @@ def generate_aln_partitions(aln_stats, partitions, aln_list):
 		group_lists[min_group_idx] += [shuffled_groups[group_idx]]
 		group_sizes[min_group_idx] += aln_stats[shuffled_groups[group_idx]]
 		group_idx += 1
-	for i in range(0, partitions):
-		aln_list_partition_files += [os.path.join(dir, "{}_part{}{}".format(os.path.splitext(basename)[0], i, os.path.splitext(basename)[1]))]
-		with open(aln_list_partition_files[i], 'w') as file:
-			for group in group_lists[i]:
-				file.write("{}\n".format(group))
+	# for i in range(0, partitions):
+	combo_count = (partitions / 2) * (partitions - 1)
+	combo_id = 0
+	for i in range(partitions-1, 0, -1):
+		for j in range(i-1, -1, -1):
+			aln_list_partition_files += [os.path.join(dir, "{}_part{}{}".format(os.path.splitext(basename)[0], combo_id, os.path.splitext(basename)[1]))]
+			with open(aln_list_partition_files[combo_id], 'w') as file:
+				for group in group_lists[i]:
+					file.write("{}\n".format(group))
+				for group in group_lists[j]:
+					file.write("{}\n".format(group))
+			combo_id += 1
+	# for i in range(0, combo_count):
+	# 	aln_list_partition_files += [os.path.join(dir, "{}_part{}{}".format(os.path.splitext(basename)[0], i, os.path.splitext(basename)[1]))]
+	# 	with open(aln_list_partition_files[i], 'w') as file:
+	# 		for group in group_lists[i]:
+	# 			file.write("{}\n".format(group))
 	return aln_list_partition_files
 
 

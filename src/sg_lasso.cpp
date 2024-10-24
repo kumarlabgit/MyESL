@@ -30,7 +30,7 @@ SGLasso::SGLasso(const arma::mat& features,
 {
   //subset features and responses according to xval_id and xval_idxs
   arma::uvec indices = arma::find(xval_idxs != xval_id);
-  Train(features.cols(indices), responses.elem(indices).t(), weights, slep_opts, intercept);
+  Train(features.rows(indices), responses.elem(indices).t(), weights, slep_opts, intercept);
 }
 
 
@@ -101,7 +101,7 @@ void SGLasso::writeSparseMappedWeightsToStream(std::ofstream& MappedWeightsFile,
 }
 
 
-arma::rowvec& SGLasso::Train(const arma::mat& features,
+arma::rowvec& SGLasso::Train(const arma::mat& A,
                                const arma::rowvec& responses,
                                const arma::mat& weights,
                                std::map<std::string, std::string> slep_opts,
@@ -202,13 +202,12 @@ arma::rowvec& SGLasso::Train(const arma::mat& features,
   // We store the number of rows and columns of the features.
   // Reminder: Armadillo stores the data transposed from how we think of it,
   //           that is, columns are actually rows (see: column major order).
-  const size_t nCols = features.n_cols;
+  const size_t nCols = A.n_rows;
 
 //  arma::mat p = features;
 //  arma::rowvec r = responses;
 
 
-  arma::mat A = features.t();
   arma::mat& ind = opts_ind;
   arma::colvec y = responses.t();
   double* z;
