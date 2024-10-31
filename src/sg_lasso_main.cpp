@@ -74,9 +74,9 @@ int main(int argc, char *argv[]) {
   double lambda[2] = {program.get<double>("lambda1"), program.get<double>("lambda2")};
   bool omit_zeroes;
   string model_ext;
-  mat features;
+  fmat features;
   mat opts_ind;
-  rowvec responses;
+  frowvec responses;
 
   // SGLasso* sgl;
 
@@ -113,7 +113,7 @@ int main(int argc, char *argv[]) {
 
   if (features_transposed)
   {
-	  mat features_t;
+	  fmat features_t;
 	  features_t.load(csv_name(program.get<std::string>("features"),csv_opts::trans));
 	  //features_t.load(csv_name(program.get<std::string>("features"),csv_opts::trans));
 	  features = features_t.t();
