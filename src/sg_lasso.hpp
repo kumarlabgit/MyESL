@@ -35,15 +35,15 @@ class SGLasso
    * @param lambda Regularization constant for ridge regression.
    * @param intercept Whether or not to include an intercept term.
    */
-  SGLasso(const arma::fmat& features,
-                   const arma::frowvec& responses,
+  SGLasso(const arma::mat& features,
+                   const arma::rowvec& responses,
                    const arma::mat& weights,
                    double* lambda,
                    std::map<std::string, std::string> slep_opts,
                    const bool intercept = true);
 
-  SGLasso(const arma::fmat& features,
-                   const arma::frowvec& responses,
+  SGLasso(const arma::mat& features,
+                   const arma::rowvec& responses,
                    const arma::mat& weights,
                    double* lambda,
                    std::map<std::string, std::string> slep_opts,
@@ -87,8 +87,8 @@ class SGLasso
    * @param weights Observation weights (for boosting).
    * @return The least squares error after training.
    */
-  arma::frowvec& Train(const arma::fmat& features,
-               const arma::frowvec& responses,
+  arma::rowvec& Train(const arma::mat& features,
+               const arma::rowvec& responses,
                const arma::mat& weights,
                std::map<std::string, std::string> slep_opts,
                const bool intercept = true);
@@ -127,25 +127,25 @@ class SGLasso
                       const arma::rowvec& responses) const;
    */
 
-  const arma::fcolvec altra(const arma::fcolvec& v_in,
+  const arma::colvec altra(const arma::colvec& v_in,
                             const int n,
                             const arma::mat& ind_mat,
                             const int nodes) const;
 
-  const double treeNorm(const arma::frowvec& x,
+  const double treeNorm(const arma::rowvec& x,
                             const int n,
                             const arma::mat& ind_mat,
                             const int nodes) const;
 
-  const double computeLambda2Max(const arma::frowvec& x,
+  const double computeLambda2Max(const arma::rowvec& x,
                             const int n,
                             const arma::mat& ind_mat,
                             const int nodes) const;
 
   //! Return the parameters (the b vector).
-  const arma::fvec& Parameters() const { return parameters; }
+  const arma::vec& Parameters() const { return parameters; }
   //! Modify the parameters (the b vector).
-  arma::fvec& Parameters() { return parameters; }
+  arma::vec& Parameters() { return parameters; }
 
   //! Return the Tikhonov regularization parameter for ridge regression.
   double* Lambda() { return lambda; }
@@ -179,7 +179,7 @@ class SGLasso
    * The calculated B.
    * Initialized and filled by constructor to hold the least squares solution.
    */
-  arma::fvec parameters;
+  arma::vec parameters;
 
   /**
    * The Tikhonov regularization parameter for ridge regression (0 for linear
@@ -198,4 +198,4 @@ class SGLasso
 
 //#endif // MLPACK_METHODS_SG_LASSO_HPP
 
-int countNonZeroGenes(const arma::fvec& arr, const arma::mat& ranges);
+int countNonZeroGenes(const arma::vec& arr, const arma::mat& ranges);
