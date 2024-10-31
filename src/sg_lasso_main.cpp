@@ -78,7 +78,7 @@ int main(int argc, char *argv[]) {
   mat opts_ind;
   rowvec responses;
 
-  SGLasso* sgl;
+  // SGLasso* sgl;
 
   int auto_cancel_threshold = program.get<int>("gene_count_threshold");
 
@@ -109,14 +109,29 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  //features.load(csv_name(program.get<std::string>("features"),csv_opts::semicolon));
-  features.load(csv_name(program.get<std::string>("features"),csv_opts::trans));
+  bool features_transposed = true;
+
+  if (features_transposed)
+  {
+	  mat features_t;
+	  features_t.load(csv_name(program.get<std::string>("features"),csv_opts::trans));
+	  //features_t.load(csv_name(program.get<std::string>("features"),csv_opts::trans));
+	  features = features_t.t();
+
+	  //features = features_t.t();
+	  //features = features_t;
+  }
+  else
+  {
+	  //features.load(csv_name(program.get<std::string>("features"),csv_opts::semicolon));
+      features.load(csv_name(program.get<std::string>("features"),csv_opts::trans));
+  }
 
   //responses.load(csv_name(program.get<std::string>("response"),csv_opts::semicolon));
   responses.load(csv_name(program.get<std::string>("response"),csv_opts::trans));
 
 
-  if (responses.n_cols != features.n_cols)
+  if (responses.n_cols != features.n_rows)
   {
     //Log::Fatal << "The responses must have the same number of columns as the feature set." << endl;
     throw std::invalid_argument("\nThe responses must have the same number of columns as the feature set.\n");
@@ -139,7 +154,7 @@ int main(int argc, char *argv[]) {
 
     for(const auto& xval_id : xval_ids) {
 	  std::cout << "Performing cross validation" << xval_id << std::endl;
-      sgl = new SGLasso(features, responses, opts_ind, lambda, processSlepOpts(program.get<std::string>("slep")), xval_idxs, xval_id);
+      SGLasso* sgl = new SGLasso(features, responses, opts_ind, lambda, processSlepOpts(program.get<std::string>("slep")), xval_idxs, xval_id);
       ofstream fileStream(program.get<std::string>("output") + "_xval_" + std::to_string(xval_id) + model_ext);
       if (fileStream.is_open())
       {
@@ -154,6 +169,7 @@ int main(int argc, char *argv[]) {
       } else {
         std::cout << "Could not open output file for writing." << std::endl;
       }
+      delete sgl;
     }
 
     //return 0;
@@ -174,7 +190,7 @@ int main(int argc, char *argv[]) {
         std::cout << "Skipping this lambda value due to gene count thresholding..." << std::endl;
         continue;
       }
-	  sgl = new SGLasso(features, responses, opts_ind, glambda, processSlepOpts(program.get<std::string>("slep")));
+	  SGLasso* sgl = new SGLasso(features, responses, opts_ind, glambda, processSlepOpts(program.get<std::string>("slep")));
 
       //TODO: make out filename reflect lambda pair
 	  ofstream fileStream(program.get<std::string>("output") + lambdaLabel(glambda,0) + lambdaLabel(glambda,1) + model_ext);
@@ -199,6 +215,7 @@ int main(int argc, char *argv[]) {
         }
         max_glambda2 = glambda[1];
       }
+      delete sgl;
     }
 
     return 0;
@@ -206,7 +223,7 @@ int main(int argc, char *argv[]) {
   }
 
 
-  sgl = new SGLasso(features, responses, opts_ind, lambda, processSlepOpts(program.get<std::string>("slep")));
+  SGLasso* sgl = new SGLasso(features, responses, opts_ind, lambda, processSlepOpts(program.get<std::string>("slep")));
 
   //std::cout << sgl->writeModelToXMLStream();
   ofstream fileStream(program.get<std::string>("output") + model_ext);
@@ -223,6 +240,7 @@ int main(int argc, char *argv[]) {
   } else {
     std::cout << "Could not open output file for writing." << std::endl;
   }
+  delete sgl;
 
   return 0;
 
