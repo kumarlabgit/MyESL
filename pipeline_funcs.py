@@ -1199,6 +1199,10 @@ def aln_list_to_absolute(aln_list, output):
 				abspath_group = []
 				for aln_filename in line.strip().split(","):
 					basename = os.path.splitext(os.path.basename(aln_filename.strip()))[0]
+					if os.name == "posix":
+						aln_filename = aln_filename.replace("\\", "/")
+					else:
+						aln_filename = aln_filename.replace("/", "\\")
 					aln_abspath = os.path.join(alnlist_dir_abspath, os.path.split(aln_filename.strip())[0], os.path.split(aln_filename.strip())[1])
 					if basename in aln_file_list.keys():
 						if aln_file_list[basename] != aln_abspath:
