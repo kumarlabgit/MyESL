@@ -36,7 +36,7 @@ def generate_hypothesis_set(args):
 		tree = Phylo.parse(newick_filename, 'newick').__next__()
 		tree_tbl = tree.total_branch_length()
 		if smart_sampling is not None and tree_tbl == 0:
-			smart_sampling = 1
+			smart_sampling = 2
 			print("Warning: provided tree does not contain branch lengths, smart sampling will select only/entire sister clade(s) as negative set(s).")
 		taxa_list = [x.name for x in tree.get_terminals()]
 		if cladesize_cutoff_upper is None:
@@ -148,7 +148,7 @@ def generate_hypothesis_set(args):
 						pass
 				response_sum = sum(responses[nodename].values())
 				#				if response_sum < 0.1 * len(nodes[nodename].get_terminals()):
-				if response_sum < 0:
+				if tree_tbl > 0 and response_sum < 0:
 					negative_set = [key for key in responses[nodename].keys() if responses[nodename][key] == -1]
 					for i in range(response_sum, 0):
 						# get minimum pair distance from matrix
@@ -168,7 +168,7 @@ def generate_hypothesis_set(args):
 								break
 				response_sum = sum(responses[nodename].values())
 				#				elif response_sum > 0.1 * len(nodes[nodename].get_terminals()):
-				if response_sum > 0:
+				if tree_tbl > 0 and response_sum > 0:
 					positive_set = [key for key in responses[nodename].keys() if responses[nodename][key] == 1]
 					for i in range(0, response_sum):
 						# get minimum pair distance from matrix
@@ -944,7 +944,7 @@ def check_memory(features_filename, output_name):
 	except:
 		raise Exception("Problem opening feature stats file {}.".format(stats_filename))
 	available_mem = psutil.virtual_memory().available
-	feature_mem = round(12 * int(stats["Samples"]) * int(stats["Features"]))
+	feature_mem = round(7 * int(stats["Samples"]) * int(stats["Features"]))
 	# feature_mem = round((12*10*5) * int(stats["Samples"]) * int(stats["Features"]))
 	if available_mem < feature_mem:
 		msg = "Exceeding available memory will severely degrade performance, if you're sure you want to try anyways, rerun MyESL with the --disable_mc flag."
