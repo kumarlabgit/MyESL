@@ -6,13 +6,16 @@ import shutil
 import statistics
 import random
 import psutil
+import math
 import numpy
 import pandas
+import copy
 from datetime import datetime
 from datetime import timedelta
 from Bio import Phylo
 from Bio import AlignIO
 import gene_contribution_visualizer as gcv
+import matplotlib.pyplot as plt
 
 
 def generate_hypothesis_set(args):
@@ -338,8 +341,8 @@ def generate_input_matrices(args, file_dict):
 		options = "{} {}".format(options.strip(), "db")
 	if args.fuzz_indels:
 		options = "{} {}".format(options.strip(), "fuzzIndels")
-	if args.bit_ct > 1:
-		options = "{} {} {}".format(options.strip(), "ct", args.bit_ct)
+#	if args.bit_ct > 1:
+#		options = "{} {} {}".format(options.strip(), "ct", args.bit_ct)
 	if args.data_type != "universal":
 		if args.data_type not in ["nucleotide", "protein", "molecular", "numeric"]:
 			raise Exception("Invalid data_type specified ({}), accepted values are: universal, molecular, protein, nucleotide, numeric.".format(data_type))
@@ -357,10 +360,23 @@ def generate_input_matrices(args, file_dict):
 		preprocess_exe = os.path.join(os.getcwd(), "bin", "preprocess.exe")
 	#for filename in hypothesis_filename_list:
 	for filename in file_dict['hypothesis_files']:
+		# Handle auto_bit_ct
+		if args.auto_bit_ct is not None:
+			counts = {"pos": 0, "neg": 0}
+			with open(filename, 'r') as response_file:
+				for line in response_file:
+					data = line.strip().split("\t")
+					if float(data[1]) > 0:
+						counts["pos"] += 1
+					elif float(data[1]) < 0:
+						counts["neg"] += 1
+			args.bit_ct = math.floor(max(1, min(counts.values()) * min(1.0, args.auto_bit_ct)))
 		# Construct preprocessing command
 		# preprocess_cmd = "{}*{}*{}*{}*{}".format(preprocess_exe, os.path.join(os.getcwd(), filename), alnlist_filename, output_basename, options)
 		# preprocess_cmd = "{}*{}*{}*{}*{}".format(preprocess_exe, os.path.join(os.getcwd(), filename), os.path.join(os.getcwd(), args.output, "aln_list.txt"), output_basename, options)
 		preprocess_cmd = "{}*{}*{}*{}*{}".format(preprocess_exe, os.path.join(os.getcwd(), filename), os.path.join(os.getcwd(), args.aln_list), output_basename, options)
+		if args.bit_ct > 1:
+			preprocess_cmd = "{}*{}*{}".format(preprocess_cmd, "ct", args.bit_ct)
 		print(preprocess_cmd.replace("*"," "))
 		hypothesis_basename = os.path.splitext(os.path.basename(filename))[0]
 		if args.skip_preprocessing:
@@ -470,6 +486,8 @@ def run_sg_lasso(args, file_dict):
 		if args.grid_gene_threshold > 0:
 			esl_cmd = esl_cmd + "*-c*{}".format(args.grid_gene_threshold)
 		esl_cmd = esl_cmd + "*--model_format*flat"
+		if args.dropout is not None:
+			esl_cmd = esl_cmd + "*--dropout*{}".format(args.dropout)
 		print(esl_cmd.replace("*", " "))
 		subprocess.call(esl_cmd.split("*"), stderr=subprocess.STDOUT)
 		new_files["weights_files"].append([os.path.join(args.output, "{}_out_feature_weights_{}_{}.txt".format(basename, lambda_val2label(val[0]), lambda_val2label(val[1]))) for val in lambda_list])
@@ -503,6 +521,111 @@ def process_weights(args, file_dict):
 			file.write("{}\t{}\n".format(hypothesis_filename.replace("_hypothesis.txt", ""), args.HSS[os.path.basename(hypothesis_filename)]))
 	new_files["HSS_file"] += [os.path.join(args.output, "HSS.txt")]
 	return new_files
+
+
+def process_top_median_weights(BSS_median_filename, groups_filename, args, top_ft_cnt=None, aim_return=False):
+	if top_ft_cnt is None:
+		top_ft_cnt = args.top_ft
+	scores = {}
+	aln_lib = {}
+	numeric = False
+	if args.data_type == "numeric":
+		numeric = True
+	model = read_ESL_model(BSS_median_filename)
+	weight_list = []
+	[[weight_list.extend(model[gene_key][pos_key].values()) for pos_key in model[gene_key].keys()] for gene_key in model.keys() if gene_key.lower() != "intercept"]
+	weight_list = [abs(x) for x in weight_list]
+	try:
+		cutoff = sorted(weight_list, reverse=False)[len(weight_list) - top_ft_cnt]
+	except:
+		cutoff = 0
+	top_model = {}
+	for gene_key in model.keys():
+		if gene_key.lower() == "intercept":
+			top_model["Intercept"] = model[gene_key]
+			continue
+		gene_val = {}
+		for pos_key in model[gene_key].keys():
+			pos_val = {}
+			for allele in model[gene_key][pos_key].keys():
+				if abs(model[gene_key][pos_key][allele]) >= cutoff:
+					pos_val[allele] = model[gene_key][pos_key][allele]
+			if len(pos_val) > 0:
+				gene_val[pos_key] = pos_val
+		if len(gene_val) > 0:
+			top_model[gene_key] = gene_val
+	gene_files = {}
+	aln_dir = os.path.dirname(args.aln_list)
+	with open(args.aln_list, 'r') as file:
+		for line in file:
+			for aln_filename in line.strip().split(","):
+				gene_files[os.path.splitext(os.path.basename(aln_filename.strip()))[0]] = os.path.join(aln_dir, aln_filename.strip())
+	found_gene_list = list(gene_files.keys())
+	for gene in top_model.keys():
+		if gene == "Intercept":
+			continue
+		elif gene not in found_gene_list:
+			raise Exception("Gene {} present in model, but not present in input files.".format(gene))
+	gene_weight_dict = get_group_weights(args.aln_list, groups_filename, list(model.keys()))
+	for gene in top_model.keys():
+		if gene == "Intercept":
+			scores["Intercept"] = top_model["Intercept"]
+			continue
+		if gene not in aln_lib.keys():
+			if numeric:
+				aln_lib[gene] = read_numeric(gene_files[gene])
+			else:
+				aln_lib[gene] = read_fasta(gene_files[gene])
+		for pos in top_model[gene].keys():
+			for allele in top_model[gene][pos].keys():
+				ft_name = "{}_{}_{}".format(gene, pos, allele)
+				scores[ft_name] = {}
+				for seq_id in aln_lib[gene].keys():
+					if numeric:
+						scores[ft_name][seq_id] = model[gene][pos] * aln_lib[gene][seq_id][pos] * gene_weight_dict[gene]
+					else:
+						if aln_lib[gene][seq_id][pos] == allele:
+							scores[ft_name][seq_id] = model[gene][pos][allele] * gene_weight_dict[gene]
+						else:
+							scores[ft_name][seq_id] = 0.0
+	if aim_return:
+		top_ft_weights = []
+		for gene in top_model.keys():
+			if gene == "Intercept":
+				continue
+			for pos in top_model[gene].keys():
+				for allele in top_model[gene][pos].keys():
+					top_ft_weights.append(("{}_{}_{}".format(gene, pos, allele), top_model[gene][pos][allele]))
+		return scores, top_ft_weights
+	return scores
+
+
+def get_group_weights(aln_list_file, group_weights_file, gene_list):
+	aln_list = []
+	with open(aln_list_file, 'r') as file:
+		for line in file:
+			group_name = ",".join([os.path.splitext(os.path.basename(aln_filename))[0] for aln_filename in line.strip().split(",") if os.path.splitext(os.path.basename(aln_filename))[0] in gene_list])
+			if group_name != '':
+				aln_list.append(group_name)
+	group_weight_list = []
+	with open(group_weights_file, 'r') as file:
+		file.readline()
+		file.readline()
+		for weight in file.readline().strip().split(","):
+			group_weight_list.append(float(weight))
+	group_weight_dict = {group_name: group_weight for [group_name, group_weight] in zip(aln_list, group_weight_list)}
+	weight_dict = {}
+	for group_key in group_weight_dict.keys():
+		for key in group_key.split(","):
+			if key not in weight_dict.keys():
+				weight_dict[key] = []
+			weight_dict[key].append(group_weight_dict[group_key])
+	for key in weight_dict.keys():
+		weight_dict[key] = float(sum(weight_dict[key]))/float(len(weight_dict[key]))
+	return weight_dict
+
+
+
 
 
 def process_single_grid_weight(weights_filename, hypothesis_filename, groups_filename, outname, aln_lib, args):
@@ -768,7 +891,11 @@ def generate_model_graphics(args, file_dict):
 
 
 def summarize_models(args, file_dict):
-	new_files = {"GCS_median_files": [], "GSS_median_files": [], "PSS_median_files": [], "GCV_median_files": [], "SPS_SPP_median_files": []}
+	new_files = {"GCS_median_files": [], "GSS_median_files": [], "PSS_median_files": [], "BSS_median_files": [], "GCV_median_files": [], "SPS_SPP_median_files": []}
+	if args.top_ft is not None:
+		new_files["TFS_median_files"] = []
+		new_files["TFV_median_files"] = []
+	bss_vals = {}
 	pss_vals = {}
 	gss_vals = {}
 	for hypothesis_file, gene_prediction_file_list in zip(file_dict["hypothesis_files"], file_dict["gene_prediction_files"]):
@@ -783,24 +910,37 @@ def summarize_models(args, file_dict):
 			if rmse <= args.grid_rmse_cutoff and acc >= args.grid_acc_cutoff:
 				gene_predictions.append(model)
 			# Parse GSS file into GSS vals
-			with open(gene_prediction_file.replace("gene_predictions", "GSS"), 'r') as gss_file:
+			gss_filename = gene_prediction_file.replace("gene_predictions", "GSS")
+			with open(gss_filename, 'r') as gss_file:
 				for line in gss_file:
 					data = line.strip().split('\t')
 					if data[0] == "Gene":
 						continue
 					if data[0] in gss_vals:
-						gss_vals[data[0]].update({gss_file: data[1]})
+						gss_vals[data[0]].update({gss_filename: data[1]})
 					else:
-						gss_vals[data[0]] = {gss_file: data[1]}
-			with open(gene_prediction_file.replace("gene_predictions", "PSS"), 'r') as pss_file:
+						gss_vals[data[0]] = {gss_filename: data[1]}
+			pss_filename = gene_prediction_file.replace("gene_predictions", "PSS")
+			with open(pss_filename, 'r') as pss_file:
 				for line in pss_file:
 					data = line.strip().split('\t')
 					if data[0] == "Position Name" or float(data[1]) == 0.0:
 						continue
 					if data[0] in pss_vals:
-						pss_vals[data[0]].update({pss_file: data[1]})
+						pss_vals[data[0]].update({pss_filename: data[1]})
 					else:
-						pss_vals[data[0]] = {pss_file: data[1]}
+						pss_vals[data[0]] = {pss_filename: data[1]}
+			bss_filename = gene_prediction_file.replace("gene_predictions", "hypothesis_out_feature_weights")
+			with open(bss_filename, 'r') as bss_file:
+				for line in bss_file:
+					data = line.strip().split('\t')
+					#if data[0] == "Intercept" or float(data[1]) == 0.0:
+					if float(data[1]) == 0.0:
+						continue
+					if data[0] in bss_vals:
+						bss_vals[data[0]].update({bss_filename: data[1]})
+					else:
+						bss_vals[data[0]] = {bss_filename: data[1]}
 		# Write aggregated GSS file
 		new_files["GSS_median_files"] += [hypothesis_file.replace("_hypothesis.txt", "_GSS_median.txt")]
 		with open(hypothesis_file.replace("_hypothesis.txt", "_GSS_median.txt"), 'w') as file:
@@ -817,6 +957,14 @@ def summarize_models(args, file_dict):
 				if len(pss_temp) == 0:
 					pss_temp = [0]
 				file.write("{}\t{}\n".format(pos, statistics.median(pss_temp)))
+		# Write aggregated BSS file
+		new_files["BSS_median_files"] += [hypothesis_file.replace("_hypothesis.txt", "_BSS_median.txt")]
+		with open(hypothesis_file.replace("_hypothesis.txt", "_BSS_median.txt"), 'w') as file:
+			for feature in bss_vals.keys():
+				bss_temp = [float(x) for x in bss_vals[feature].values() if abs(float(x)) > 0]
+				if len(bss_temp) == 0:
+					bss_temp = [0]
+				file.write("{}\t{}\n".format(feature, statistics.median(bss_temp)))
 		# Write aggregated gene_predictions file
 		new_files["GCS_median_files"] += [hypothesis_file.replace("_hypothesis.txt", "_GCS_median.txt")]
 		with open(hypothesis_file.replace("_hypothesis.txt", "_GCS_median.txt"), 'w') as file:
@@ -844,8 +992,190 @@ def summarize_models(args, file_dict):
 						file.write("{}\t".format(statistics.median(GCS_list)))
 				file.write("\n")
 		new_files["GCV_median_files"] += [gcv.main(hypothesis_file.replace("_hypothesis.txt", "_GCS_median.txt"), lead_cols=3, species_limit=args.species_display_limit, gene_limit=args.gene_display_limit, ssq_threshold=args.gene_display_cutoff, m_grid=args.m_grid)]
+		if not args.AIM:
+			if args.top_ft is not None:
+				# Write median_top_feature_predictions file
+				new_files["TFS_median_files"] += [hypothesis_file.replace("_hypothesis.txt", "_TFS_median.txt")]
+				BSS_median_filename = new_files["BSS_median_files"][-1]
+				groups_filename = os.path.join(os.path.split(hypothesis_file)[0], "group_indices_{}".format(os.path.split(hypothesis_file)[1]))
+				with open(hypothesis_file.replace("_hypothesis.txt", "_TFS_median.txt"), 'w') as file:
+					TFS_data = process_top_median_weights(BSS_median_filename, groups_filename, args)
+					response, missing_seqids = parse_response_file(hypothesis_file, species_list)
+					top_ft_predictions = {seq_id: sum([TFS_data[ft].get(seq_id, 0) for ft in TFS_data.keys() if ft != "Intercept"]) + TFS_data["Intercept"] for seq_id in response.keys()}
+					ft_list = [ft_name for ft_name in TFS_data.keys() if ft_name != "Intercept"]
+					file.write("SeqID\tResponse\tPrediction\tIntercept\t{}\n".format("\t".join([ft_name for ft_name in ft_list if ft_name not in ["SeqID", "Prediction", "Intercept", "Response"]])))
+					for seq_id in response.keys():
+						line = "{}\t{}\t{}\t{}\t{}\n".format(seq_id, response[seq_id], top_ft_predictions[seq_id], TFS_data["Intercept"], "\t".join([str(TFS_data[ft_name].get(seq_id, "nan")) for ft_name in ft_list]))
+						file.write(line)
+				new_files["TFV_median_files"] += [gcv.main(hypothesis_file.replace("_hypothesis.txt", "_TFS_median.txt"), species_limit=args.species_display_limit, gene_limit=args.gene_display_limit, ssq_threshold=args.gene_display_cutoff, m_grid=args.m_grid)]
+			if args.top_ft_window is not None:
+				window_cnt = 50
+				BSS_median_filename = new_files["BSS_median_files"][-1]
+				groups_filename = os.path.join(os.path.split(hypothesis_file)[0], "group_indices_{}".format(os.path.split(hypothesis_file)[1]))
+				response, missing_seqids = parse_response_file(hypothesis_file, species_list)
+				response = {seq_id: float(response[seq_id]) for seq_id in response.keys()}
+				pred_cnts = []
+				for window_idx in range(0, window_cnt):
+					top_ft_cnt = args.top_ft_window * (window_idx + 1)
+					TFS_data = process_top_median_weights(BSS_median_filename, groups_filename, args, top_ft_cnt=top_ft_cnt)
+					top_ft_predictions = {seq_id: sum([TFS_data[ft].get(seq_id, 0) for ft in TFS_data.keys() if ft != "Intercept"]) + TFS_data["Intercept"] for seq_id in response.keys()}
+					pred_cnts.append({"TP": 0, "TN": 0, "FP": 0, "FN": 0})
+					for seq_id in response.keys():
+						if response[seq_id] > 0:
+							if top_ft_predictions[seq_id] > 0:
+								pred_cnts[window_idx]["TP"] += 1
+							elif top_ft_predictions[seq_id] < 0:
+								pred_cnts[window_idx]["FN"] += 1
+						elif response[seq_id] < 0:
+							if top_ft_predictions[seq_id] > 0:
+								pred_cnts[window_idx]["FP"] += 1
+							elif top_ft_predictions[seq_id] < 0:
+								pred_cnts[window_idx]["TN"] += 1
+				# Generating sample data for the three series
+				x = numpy.arange(args.top_ft_window, (window_cnt + 1) * args.top_ft_window, args.top_ft_window)
+				acc = [(pred_cnts[window_idx]["TP"] + pred_cnts[window_idx]["TN"])/sum(pred_cnts[window_idx].values()) for window_idx in range(0, window_cnt)]
+				tpr = [pred_cnts[window_idx]["TP"]/(pred_cnts[window_idx]["TP"] + pred_cnts[window_idx]["FN"]) for window_idx in range(0, window_cnt)]
+				tnr = [pred_cnts[window_idx]["TN"]/(pred_cnts[window_idx]["TN"] + pred_cnts[window_idx]["FP"]) for window_idx in range(0, window_cnt)]
+
+				# Plotting the three series
+				plt.figure(figsize=(10, 6))
+				plt.plot(x, acc, marker='o', label='Acc')
+				plt.plot(x, tpr, marker='s', label='TPR')
+				plt.plot(x, tnr, marker='^', label='FPR')
+
+				# Adding plot details
+				plt.title('Line Plot of Acc, TPR, and TNR')
+				plt.xlabel('Selected Top Features')
+				plt.ylabel('Accuracy')
+				plt.grid(True)
+				plt.legend()
+
+				# Display the plot
+				plt.show()
+		if args.AIM:
+			if args.top_ft is None:
+				top_ft = 100
+			window_cnt = top_ft
+			BSS_median_filename = new_files["BSS_median_files"][-1]
+			groups_filename = os.path.join(os.path.split(hypothesis_file)[0], "group_indices_{}".format(os.path.split(hypothesis_file)[1]))
+			response, missing_seqids = parse_response_file(hypothesis_file, species_list)
+			response = {seq_id: float(response[seq_id]) for seq_id in response.keys()}
+			pred_cnts = []
+
+			TFS_data, top_ft_weights = process_top_median_weights(BSS_median_filename, groups_filename, args, top_ft_cnt=args.aim_window, aim_return=True)
+			gcv.aim_graphic(TFS_data, top_ft_weights, response, args)
+
+			#
+			# for window_idx in range(0, window_cnt):
+			# 	top_ft_cnt = window_idx + 1
+			# 	TFS_data,top_ft_weights = process_top_median_weights(BSS_median_filename, groups_filename, args, top_ft_cnt=top_ft_cnt, aim_return=True)
+			# 	gcv.aim_graphic(TFS_data, top_ft_weights, response)
+
+				#
+				# top_ft_predictions = {seq_id: sum([TFS_data[ft].get(seq_id, 0) for ft in TFS_data.keys() if ft != "Intercept"]) + TFS_data["Intercept"] for seq_id in response.keys()}
+				# pred_cnts.append({"TP": 0, "TN": 0, "FP": 0, "FN": 0})
+				# for seq_id in response.keys():
+				# 	if response[seq_id] > 0:
+				# 		if top_ft_predictions[seq_id] > 0:
+				# 			pred_cnts[window_idx]["TP"] += 1
+				# 		elif top_ft_predictions[seq_id] < 0:
+				# 			pred_cnts[window_idx]["FN"] += 1
+				# 	elif response[seq_id] < 0:
+				# 		if top_ft_predictions[seq_id] > 0:
+				# 			pred_cnts[window_idx]["FP"] += 1
+				# 		elif top_ft_predictions[seq_id] < 0:
+				# 			pred_cnts[window_idx]["TN"] += 1
+
+
+
 	new_files["SPS_SPP_median_files"] = [fname.replace("GCS_median", "SPS_SPP_median").replace(".png", ".txt") for fname in new_files["GCV_median_files"]]
 	return new_files
+
+
+def aim_search(args):
+	selected_features = []
+	aim_files = []
+	iter_ct = 0
+	gs_files = generate_hypothesis_set(args)
+	j = 0
+	shutil.copy(gs_files['hypothesis_files'][j],
+				os.path.join(args.output, os.path.basename(gs_files['hypothesis_files'][j]).replace("_hypothesis.txt".format(args.output), ".txt")))
+	feature_map = {}
+	aim_part_dir = None
+	while iter_ct < args.aim_max_iter:
+		aim_args = copy.deepcopy(args)
+		iter_ct += 1
+		if iter_ct == 2:
+			with open(aim_files[0]["feature_mapping_files"][0], 'r') as file:
+				for line in file:
+					if line[0] == "0":
+						continue
+					row_data = line.strip().split("\t")
+					feature_map[row_data[1]] = row_data[0]
+		#aim_args.output = os.path.join(args.output, "{}_part{}".format(os.path.basename(args.output), iter_ct))
+		aim_args.preserve_inputs = True
+		aim_args.timers = args.timers
+		aim_args.stats_out = "BPGHS"
+		# aim_args.grid_summary_only = True
+		if iter_ct > 1:
+			aim_args.skip_preprocessing = True
+			if not os.path.exists(os.path.join(aim_part_dir, "aim_dropped.txt")):
+				break
+			with open(os.path.join(args.output, "aim_dropped_idx.txt"), 'a') as ft_idx_file:
+				with open(os.path.join(aim_part_dir, "aim_dropped.txt"), 'r') as ft_name_file:
+					for line in ft_name_file:
+						ft_idx_file.write("{}\n".format(int(feature_map[line.strip()]) - 1))
+						selected_features += [line.strip()]
+			if len(selected_features) >= args.aim_max_ft:
+				break
+			aim_args.dropout = os.path.join(args.output, "aim_dropped_idx.txt")
+
+		# do some more settings/output naming stuff
+		#
+		#
+		aim_iter_files = grid_search(aim_args)
+		aim_files.append(aim_iter_files)
+		# do visual processing for this iteration and update counts/selected features
+		# add to selected_features
+		# move/rename outputs to clear for next iteration (leave inputs in place)
+		aim_part_dir = os.path.join(args.output, "{}_part{}".format(os.path.basename(args.output), iter_ct))
+		os.mkdir(aim_part_dir)
+		inputs_list = [args.aln_list, os.path.join(args.output, "aim_dropped_idx.txt")]
+		for filetype in aim_iter_files.keys():
+			if filetype in ["hypothesis_files","response_files","xval_id_files","features_files","feature_mapping_files","group_indices_files","field_files","lambda_list_file","sweights_files","slep_opts_files","pos_stats_files"]:
+				for file_list in aim_iter_files[filetype]:
+					if isinstance(file_list, str):
+						# shutil.move(file_list, aim_part_dir)
+						inputs_list += [file_list]
+					elif file_list is not None:
+						for file in file_list:
+							# print(filetype)
+							# print(file)
+							try:
+								#shutil.move(file, aim_part_dir)
+								inputs_list += [file]
+							except:
+								pass
+		for file in os.listdir(args.output):
+			filepath = os.path.join(args.output, file)
+			# print(filepath)
+			if os.path.isfile(filepath) and filepath not in inputs_list and "missing_seqs" not in filepath and "feature_stats" not in filepath:
+				# print(filepath)
+				shutil.move(filepath, aim_part_dir)
+		# if iter_ct == 1:
+		# 	for key in aim_iter_files.keys():
+		# 		print(key)
+		# 		print(aim_iter_files[key])
+	# dump selected_features to a text file.
+
+	with open(os.path.join(args.output, "aim_dropped.txt"), 'w') as outfile:
+		for part_idx in range(1, iter_ct + 1):
+			part_dir = os.path.join(args.output, "{}_part{}".format(os.path.basename(args.output), part_idx))
+			shutil.move(os.path.join(part_dir, "aim_out.png"), os.path.join(args.output, "aim_out_{}.png".format(part_idx)))
+			with open(os.path.join(part_dir, "aim_dropped.txt"), 'r') as infile:
+				for line in infile:
+					outfile.write("{}\n".format(line.strip()))
+	return aim_files
 
 
 def grid_search(args):

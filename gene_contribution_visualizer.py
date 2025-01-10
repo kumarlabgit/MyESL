@@ -7,6 +7,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib import colors
 from matplotlib.colors import TwoSlopeNorm
+from matplotlib.gridspec import GridSpec
 import numpy as np
 
 def get_roc(labels, predictions):
@@ -79,6 +80,135 @@ def merge_predictions(file_list, output_filename=None):
 	np.savetxt(output_filename, merged_data, fmt='\t'.join(['%s']*merged_data.shape[1]), header='\t'.join(output_header), comments='')
 #	np.savetxt(output_filename, merged_data, delimiter="\t")
 	return output_filename
+
+
+def aim_graphic(scores, feature_weights, response_dict, args):
+	# sort feature_weights by weight
+	feature_weights.sort(key=lambda tup: abs(tup[1]), reverse=True)
+	# construct numpy ndarray from scores ordered by sorted feature weights
+	seqid_list = [response for response in response_dict.keys()]
+	score_lists = {seqid: [scores["Intercept"]]+[scores[ft_name][seqid] for ft_name, weight in feature_weights] for seqid in seqid_list}
+	data = np.asarray([[response_dict[seqid], sum(score_lists[seqid])]+score_lists[seqid] for seqid in seqid_list], dtype="float")
+	header = ["Response","Prediction","Intercept"] + [ft_name for ft_name, weight in feature_weights]
+	lead_cols = 4
+	m_grid = False
+	num_rows, num_cols = data.shape
+
+	# Create red-white-green colormap
+	top = mpl.cm.get_cmap('Reds_r', 128)
+	bottom = mpl.cm.get_cmap('Greens', 128)
+	newcolors = np.vstack((top(np.linspace(0, 1, 128)), bottom(np.linspace(0, 1, 128))))
+	cmap = mpl.colors.ListedColormap(newcolors, name='GreenWhiteRed')
+
+	# draw gridlines
+	xtick_width = 20
+	ytick_width = 20
+	# fig, ax = plt.subplots(figsize=(num_cols * 0.1, num_rows * 0.1))
+
+	# fig = plt.figure(figsize=(num_cols * 0.1, num_rows * 0.1))
+	fig = plt.figure(figsize=(num_cols * 0.1, num_rows * 0.15))
+	gs = GridSpec(9, 100, figure=fig)
+
+	ax  = fig.add_subplot(gs[:-4, :])
+	ax2 = fig.add_subplot(gs[-1, 5:95])
+
+	label_size = 3
+	cell_label_size = 2.0
+	DPI = 600
+	ax.grid(which='major', axis='both', linestyle='-', color='k', linewidth=0.2)
+	# Make red-yellow-green color map with NaN=grey
+	#cmap = copy.copy(mpl.cm.get_cmap("RdYlGn"))
+	cmap.set_bad(color='grey')
+	# Apply color map to first three columns, and then separately to the rest of the columns
+	if m_grid:
+		max_abs_val = max([abs(np.nanmax(data)), abs(np.nanmin(data))])
+		ax.imshow(data[:, :], cmap=cmap, norm=TwoSlopeNorm(0, -max_abs_val, max_abs_val), extent=(0, num_cols * xtick_width, num_rows * ytick_width, 0))
+	else:
+		# ax.imshow(data[:, 0:3], cmap=cmap, norm=TwoSlopeNorm(0), extent=(0, (lead_cols - 1) * xtick_width, num_rows * ytick_width, 0))
+		# ax.imshow(data[:, 3:], cmap=cmap, norm=TwoSlopeNorm(0), extent=((lead_cols - 1)*xtick_width, num_cols*xtick_width, num_rows*ytick_width, 0))
+		#for i in range(0, lead_cols-1):
+		for i in range(0, 2):
+			ax.imshow(data[:, i:i+1], cmap=cmap, norm=TwoSlopeNorm(0), extent=(i*xtick_width, (i+1) * xtick_width, num_rows * ytick_width, 0))
+		max_abs_val = max([abs(np.nanmax(data[:, lead_cols - 1:])), abs(np.nanmin(data[:, lead_cols - 1:]))])
+		ax.imshow(data[:, lead_cols-1:], cmap=cmap, norm=TwoSlopeNorm(0, -max_abs_val, max_abs_val), extent=((lead_cols - 1)*xtick_width, num_cols * xtick_width, num_rows * ytick_width, 0))
+	ax.set_xticks(np.arange(0, num_cols * xtick_width, xtick_width))
+	ax.set_xticklabels(header, rotation=90, ha='left', size=label_size)
+	ax.set_yticks(np.arange(0, num_rows * ytick_width, ytick_width))
+	ax.set_yticklabels(seqid_list, va="top", size=label_size)
+	ax.set_xlabel('Group Names', fontsize=label_size * 1.25)
+	ax.set_ylabel('Sequence IDs', fontsize=label_size * 1.25)
+	if m_grid:
+		ax.set_title('M-Grid', fontsize=label_size * 1.75)
+	else:
+		ax.set_title('Group Sparsity Scores', fontsize=label_size * 1.75)
+	for (i, j), z in np.ndenumerate(data):
+		if not m_grid:
+			if j < lead_cols - 1:
+				ax.text((j + 0.5) * xtick_width, (i + 0.5) * ytick_width, '{:0.1f}'.format(z), ha='center', va='center', size=cell_label_size)
+			else:
+				ax.text((j + 0.5) * xtick_width, (i + 0.5) * ytick_width, '{:0.2f}'.format(z), ha='center', va='center', size=cell_label_size)
+		elif np.isnan(z):
+			ax.text((j + 0.5) * xtick_width, (i + 0.5) * ytick_width, 'x', ha='center', va='center', size=cell_label_size)
+	output = os.path.join(args.output, "aim_out.png")
+	if output is None:
+		output = os.path.join(os.path.dirname(predictions_table), "{}.png".format(os.path.splitext(os.path.basename(predictions_table))[0]))
+#	plt.savefig(output, dpi=DPI, bbox_inches='tight')
+#	plt.close()
+
+	pred_cnts = []
+	cutoff_idx = None
+	cutoff_thresh = 0.9
+	for window_idx in range(0, len(feature_weights)-1):
+		pred_cnts.append({"TP": 0, "TN": 0, "FP": 0, "FN": 0})
+		for seqid in response_dict.keys():
+			score = sum(score_lists[seqid][0:window_idx+1])
+			if response_dict[seqid] > 0:
+				if score > 0:
+					pred_cnts[window_idx]["TP"] += 1
+				elif score < 0:
+					pred_cnts[window_idx]["FN"] += 1
+			elif response_dict[seqid] < 0:
+				if score > 0:
+					pred_cnts[window_idx]["FP"] += 1
+				elif score < 0:
+					pred_cnts[window_idx]["TN"] += 1
+		if cutoff_idx is None and pred_cnts[window_idx]["TP"] / (pred_cnts[window_idx]["FN"] + pred_cnts[window_idx]["TP"]) >= cutoff_thresh and pred_cnts[window_idx]["TN"] / (pred_cnts[window_idx]["FP"] + pred_cnts[window_idx]["TN"]) >= cutoff_thresh:
+			cutoff_idx = window_idx
+		# print(window_idx)
+		# print(pred_cnts[window_idx])
+	if cutoff_idx is None:
+		plt.close()
+		return 0
+	dropped_fname = "aim_dropped.txt"
+	with open(os.path.join(args.output, dropped_fname), 'w') as file:
+		for ft_idx in range(0, cutoff_idx):
+			file.write("{}\n".format(feature_weights[ft_idx][0]))
+
+	# x = numpy.arange(args.top_ft_window, (window_cnt + 1) * args.top_ft_window, args.top_ft_window)
+	x = np.arange(1, len(feature_weights), 1)
+	acc = [(pred_cnts[window_idx]["TP"] + pred_cnts[window_idx]["TN"]) / sum(pred_cnts[window_idx].values()) for window_idx in range(0, len(feature_weights)-1)]
+	tpr = [pred_cnts[window_idx]["TP"] / (pred_cnts[window_idx]["TP"] + pred_cnts[window_idx]["FN"]) for window_idx in range(0, len(feature_weights)-1)]
+	tnr = [pred_cnts[window_idx]["TN"] / (pred_cnts[window_idx]["TN"] + pred_cnts[window_idx]["FP"]) for window_idx in range(0, len(feature_weights)-1)]
+
+	# fig2, ax2 = plt.subplots()
+
+	ax2.plot(x, acc, marker='o', label='Acc', ms=1)
+	ax2.plot(x, tpr, marker='s', label='TPR', ms=1)
+	ax2.plot(x, tnr, marker='^', label='FPR', ms=1)
+	ax2.axvline(x=cutoff_idx + 1.5, color = 'b')
+
+	ax.axvline(x=(cutoff_idx + 3) * 20, color='b')
+
+	# Adding plot details
+	ax2.set_title('Line Plot of Acc, TPR, and TNR')
+	ax2.set_xlabel('Selected Top Features')
+	ax2.set_ylabel('Accuracy')
+	ax2.grid(True)
+	ax2.legend()
+
+	plt.savefig(output, dpi=DPI, bbox_inches='tight')
+	plt.close()
+	return cutoff_idx + 1
 
 
 def main(predictions_table, lead_cols=4, response_idx=2, prediction_idx=3, output=None, ssq_threshold=0, gene_limit=100, m_grid=False, species_limit=100):

@@ -43,6 +43,10 @@ int main(int argc, char *argv[]) {
     .default_value(std::string("-"))
     .help("Specify a file of lambda value pairs.");
 
+  program.add_argument("-d", "--dropout")
+    .default_value(std::string("-"))
+    .help("Specify a list of feature indexes to drop/ignore.");
+
   program.add_argument("-z", "--lambda1")
     .default_value(0.1)
     .help("Specify individual feature sparsity.")
@@ -77,6 +81,7 @@ int main(int argc, char *argv[]) {
   fmat features;
   mat opts_ind;
   frowvec responses;
+  urowvec dropout;
 
   // SGLasso* sgl;
 
@@ -125,6 +130,13 @@ int main(int argc, char *argv[]) {
   {
 	  //features.load(csv_name(program.get<std::string>("features"),csv_opts::semicolon));
       features.load(csv_name(program.get<std::string>("features"),csv_opts::trans));
+  }
+
+  if (program.get<std::string>("dropout") != "-")
+  {
+    dropout.load(csv_name(program.get<std::string>("dropout"),csv_opts::trans));
+    features.cols(dropout).fill(0);
+	std::cout << "Ignoring features at indices in file " << program.get<std::string>("dropout") << "." << std::endl;
   }
 
   //responses.load(csv_name(program.get<std::string>("response"),csv_opts::semicolon));

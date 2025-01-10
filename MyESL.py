@@ -45,14 +45,22 @@ if __name__ == '__main__':
 	parser.add_argument("--species_display_limit", help="Limits the number of species displayed in the generated graph images.", type=int, default=100)
 	parser.add_argument("--m_grid", help="Generate m-grid graphical output with display limited to <rows>,<cols>, e.g. \"--m_grid 10,20\" .", type=str, default=None)
 	parser.add_argument("--bit_ct", help="Ignore mutations observed fewer than N times.", type=int, default=1)
+	parser.add_argument("--auto_bit_ct", help="Automatically set bit_ct to X% of response class with fewer members.", type=float, default=None)
 	parser.add_argument("--include_singletons", help="Include singleton sites in analysis.", action='store_true', default=False)
 	parser.add_argument("--stats_out", help="<str[PGHS]*> Various single-character flags for output produced, consult README for more info.", type=str, default="")
 	parser.add_argument("--data_type", help="<Options are \"nucleotide\", \"protein\", \"molecular\", \"universal\". Consult documentation for detailed info.", type=str, default="universal")
-	parser.add_argument("--DrPhylo", help="Run Dr Phylo type analysis.", action='store_true', default=False)
 	parser.add_argument("--method", help="SGLasso type to use. Options are \"logistic\" or \"leastr\". Defaults to \"logistic\".", type=str, default="logistic")
 	parser.add_argument("--threads", help="Number of threads to use where applicable.", type=int, default=None)
 	parser.add_argument("--subsets", help="Number of group-wise sub-sets to split the data into initially (Use 0 for automatic determination based on free memory).", type=int, default=None)
-
+	parser.add_argument("--dropout", help="File containing list of feature indices to ignore.", type=str, default=None)
+	parser.add_argument("--top_ft", help="Generate feature-level contribution heatmap using only the top N features.", type=int, default=None)
+	parser.add_argument("--top_ft_window", help="Generate feature-level contribution heatmap using only the top 10 N feature windows.", type=int, default=None)
+	parser.add_argument("--aim_max_iter", help="Maximum number of iterations to run in AIM mode.", type=int, default=10)
+	parser.add_argument("--aim_max_ft", help="Maximum number of features to select in AIM mode.", type=int, default=1000)
+	parser.add_argument("--aim_window", help="Window of top features to select from at each AIM iteration.", type=int, default=100)
+	parser.add_argument("--aim_acc_cutoff", help="Minimum balanced accuracy a set of features must achieve to be selected.", type=float, default=0.9)
+	parser.add_argument("--DrPhylo", help="Run Dr Phylo type analysis.", action='store_true', default=False)
+	parser.add_argument("--AIM", help="Run ancestry informative markers analysis.", action='store_true', default=False)
 
 	args = parser.parse_args()
 
@@ -106,6 +114,11 @@ if __name__ == '__main__':
 	if args.lambda1_grid is not None and args.lambda2_grid is not None and args.kfold > 1:
 		raise Exception("Cannot use --kfold option while running in grid search mode.")
 	args.single_lambda_pair = False
+	if args.AIM:
+		if args.lambda1_grid is None:
+			args.lambda2_grid = "0.1,1.0,0.1"
+		if args.lambda2_grid is None:
+			args.lambda2_grid = "0.0001,0.00011,0.0001"
 	#Convert single run to 1x1 grid run
 	if args.lambda1_grid is None and args.lambda2_grid is None:
 		args.lambda1_grid = "{},{},{}".format(args.lambda1, args.lambda1 + 0.00001, 0.00002)
@@ -155,14 +168,17 @@ if __name__ == '__main__':
 		args.lambda2 = 0.0000000001
 	args.timers = {"preprocessing": {"start": None}, "sglasso": {"start": None}, "analysis": {"start": None}}
 	if (args.grid_z is None and args.grid_y is not None) or (args.grid_y is None and args.grid_z is not None):
-		raise Exception("Only one grid search parameter specified, --grid_z and --grid_y must be specified together.")
+		raise Exception("Only one grid search parameter specified, --lambda1_grid and --lambda2_grid must be specified together.")
 	elif args.grid_z is not None and args.grid_y is not None and args.xval <= 1:
 		gs_files = None
 		if not os.path.exists(args.output):
 			os.mkdir(args.output)
 		args.aln_list = pf.aln_list_to_absolute(args.aln_list, args.output)
 		if args.partitions is None or args.partitions == 1:
-			gs_files = pf.grid_search(args)
+			if args.AIM and args.classes is not None:
+				pf.aim_search(args)
+			else:
+				gs_files = pf.grid_search(args)
 		elif args.partitions < 1:  # If partitions set to a value < 1, automatically determine ideal partition size
 			try:  # run grid search on initial set, in a try block.
 				gs_files = pf.grid_search(args)
