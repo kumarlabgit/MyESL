@@ -25,8 +25,8 @@ if __name__ == '__main__':
 	parser.add_argument("--class_bal", help="Sample balancing type:['weighted', 'up', 'down', 'phylo'(, 'phylo_1', 'phylo_2')]", type=str, default=None)
 	parser.add_argument("--preserve_inputs", help="Leave input files in place for inspection.", action='store_true', default=False)
 	parser.add_argument("--disable_mc", help="Disable available memory check.", action='store_true', default=False)
-	parser.add_argument("-z", "--lambda1", help="Feature sparsity parameter.", type=float, default=0.1)
-	parser.add_argument("-y", "--lambda2", help="Group sparsity parameter.", type=float, default=0.1)
+	parser.add_argument("-z", "--lambda1", help="Feature sparsity parameter.", type=float, default=None)
+	parser.add_argument("-y", "--lambda2", help="Group sparsity parameter.", type=float, default=None)
 	parser.add_argument("--lambda1_grid", help="Grid search sparsity parameter interval specified as 'min,max,step_size'", type=str, default=None)
 	parser.add_argument("--lambda2_grid", help="Grid search group sparsity parameter interval specified as 'min,max,step_size'", type=str, default=None)
 	parser.add_argument("--grid_rmse_cutoff", help="RMSE cutoff when selecting models to aggregate.", type=float, default=100.0)
@@ -92,6 +92,30 @@ if __name__ == '__main__':
 		raise Exception("Cannot use --tree and --classes options simultaneously.")
 	if args.tree is None and args.gen_clade_list:
 		raise Exception("Cannot use --gen_clade_list option and --classes options simultaneously.")
+	#if not args.AIM and not args.DrPhylo:
+	#	if args.lambda1_grid is None and args.lambda1 is None:
+	#		args.lambda1 = 0.1
+	if args.lambda1_grid is None:
+		if args.lambda1 is not None:
+			args.lambda1_grid = "{},{},{}".format(args.lambda1, args.lambda1 + 0.00001, 0.00002)
+		elif args.AIM or args.DrPhylo:
+			args.lambda1_grid = "0.1,1.0,0.1"
+		else:
+			# args.lambda1_grid = "0.1,0.10001,0.00002"
+			# Default to 10x10 grid-search
+			args.lambda1_grid = "0.1,1.0,0.1"
+	if args.lambda2_grid is None:
+		if args.lambda2 is not None:
+			args.lambda2_grid = "{},{},{}".format(args.lambda2, args.lambda2 + 0.00001, 0.00002)
+		else:
+			if args.AIM:
+				args.lambda2_grid = "0.0001,0.00011,0.0001"
+			elif args.DrPhylo:
+				args.lambda2_grid = "0.1,1.0,0.1"
+			else:
+				# args.lambda2_grid = "0.1,0.10001,0.00002"
+				# Default to 10x10 grid-search
+				args.lambda2_grid = "0.1,1.0,0.1"
 	if args.DrPhylo:
 		args.grid_summary_only = True
 		if args.class_bal is None:
@@ -116,7 +140,7 @@ if __name__ == '__main__':
 	args.single_lambda_pair = False
 	if args.AIM:
 		if args.lambda1_grid is None:
-			args.lambda2_grid = "0.1,1.0,0.1"
+			args.lambda1_grid = "0.1,1.0,0.1"
 		if args.lambda2_grid is None:
 			args.lambda2_grid = "0.0001,0.00011,0.0001"
 	#Convert single run to 1x1 grid run
@@ -125,6 +149,12 @@ if __name__ == '__main__':
 		args.lambda2_grid = "{},{},{}".format(args.lambda2, args.lambda2 + 0.00001, 0.00002)
 		# Disabled because it breaks subsetting
 		# args.single_lambda_pair = True
+
+	#sg_lasso still needs lambda1 and lambda2 values even when it ignores them for the lambda-pair file
+	if args.lambda1 is None:
+		args.lambda1 = float(args.lambda1_grid.split(",")[0])
+	if args.lambda2 is None:
+		args.lambda2 = float(args.lambda2_grid.split(",")[0])
 
 	### Convert new parameter names to old ###
 	args.partitions = args.subsets

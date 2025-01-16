@@ -1065,28 +1065,6 @@ def summarize_models(args, file_dict):
 			TFS_data, top_ft_weights = process_top_median_weights(BSS_median_filename, groups_filename, args, top_ft_cnt=args.aim_window, aim_return=True)
 			gcv.aim_graphic(TFS_data, top_ft_weights, response, args)
 
-			#
-			# for window_idx in range(0, window_cnt):
-			# 	top_ft_cnt = window_idx + 1
-			# 	TFS_data,top_ft_weights = process_top_median_weights(BSS_median_filename, groups_filename, args, top_ft_cnt=top_ft_cnt, aim_return=True)
-			# 	gcv.aim_graphic(TFS_data, top_ft_weights, response)
-
-				#
-				# top_ft_predictions = {seq_id: sum([TFS_data[ft].get(seq_id, 0) for ft in TFS_data.keys() if ft != "Intercept"]) + TFS_data["Intercept"] for seq_id in response.keys()}
-				# pred_cnts.append({"TP": 0, "TN": 0, "FP": 0, "FN": 0})
-				# for seq_id in response.keys():
-				# 	if response[seq_id] > 0:
-				# 		if top_ft_predictions[seq_id] > 0:
-				# 			pred_cnts[window_idx]["TP"] += 1
-				# 		elif top_ft_predictions[seq_id] < 0:
-				# 			pred_cnts[window_idx]["FN"] += 1
-				# 	elif response[seq_id] < 0:
-				# 		if top_ft_predictions[seq_id] > 0:
-				# 			pred_cnts[window_idx]["FP"] += 1
-				# 		elif top_ft_predictions[seq_id] < 0:
-				# 			pred_cnts[window_idx]["TN"] += 1
-
-
 
 	new_files["SPS_SPP_median_files"] = [fname.replace("GCS_median", "SPS_SPP_median").replace(".png", ".txt") for fname in new_files["GCV_median_files"]]
 	return new_files
@@ -1115,8 +1093,8 @@ def aim_search(args):
 		#aim_args.output = os.path.join(args.output, "{}_part{}".format(os.path.basename(args.output), iter_ct))
 		aim_args.preserve_inputs = True
 		aim_args.timers = args.timers
-		aim_args.stats_out = "BPGHS"
-		# aim_args.grid_summary_only = True
+		# aim_args.stats_out = "BPGHS"
+		aim_args.grid_summary_only = True
 		if iter_ct > 1:
 			aim_args.skip_preprocessing = True
 			if not os.path.exists(os.path.join(aim_part_dir, "aim_dropped.txt")):
@@ -1126,8 +1104,6 @@ def aim_search(args):
 					for line in ft_name_file:
 						ft_idx_file.write("{}\n".format(int(feature_map[line.strip()]) - 1))
 						selected_features += [line.strip()]
-			if len(selected_features) >= args.aim_max_ft:
-				break
 			aim_args.dropout = os.path.join(args.output, "aim_dropped_idx.txt")
 
 		# do some more settings/output naming stuff
@@ -1162,16 +1138,21 @@ def aim_search(args):
 			if os.path.isfile(filepath) and filepath not in inputs_list and "missing_seqs" not in filepath and "feature_stats" not in filepath:
 				# print(filepath)
 				shutil.move(filepath, aim_part_dir)
+		if len(selected_features) >= args.aim_max_ft:
+			break
 		# if iter_ct == 1:
 		# 	for key in aim_iter_files.keys():
 		# 		print(key)
 		# 		print(aim_iter_files[key])
 	# dump selected_features to a text file.
-
 	with open(os.path.join(args.output, "aim_dropped.txt"), 'w') as outfile:
 		for part_idx in range(1, iter_ct + 1):
 			part_dir = os.path.join(args.output, "{}_part{}".format(os.path.basename(args.output), part_idx))
 			shutil.move(os.path.join(part_dir, "aim_out.png"), os.path.join(args.output, "aim_out_{}.png".format(part_idx)))
+			if not os.path.exists(os.path.join(part_dir, "aim_dropped.txt")):
+				print("Terminating at iteration {} after dropping {} most informative features, because balanced accuracy of {} could no longer be"
+					  " achieved using top {} selected features.".format(part_idx, len(selected_features), args.aim_acc_cutoff, args.aim_window))
+				break
 			with open(os.path.join(part_dir, "aim_dropped.txt"), 'r') as infile:
 				for line in infile:
 					outfile.write("{}\n".format(line.strip()))

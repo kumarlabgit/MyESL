@@ -87,6 +87,30 @@ def aim_graphic(scores, feature_weights, response_dict, args):
 	feature_weights.sort(key=lambda tup: abs(tup[1]), reverse=True)
 	# construct numpy ndarray from scores ordered by sorted feature weights
 	seqid_list = [response for response in response_dict.keys()]
+
+	# resort feature weights with class balancing in mind
+	pos_feature_weights = [x for x in feature_weights if x[1] > 0]
+	neg_feature_weights = [x for x in feature_weights if x[1] < 0]
+	pred_dict = {seqid: [response_dict[seqid], scores["Intercept"]] for seqid in seqid_list}
+	pos_count = sum([1 for x in response_dict.values() if x > 0])
+	neg_count = sum([1 for x in response_dict.values() if x < 0])
+	resorted_feature_weights = []
+	for window_idx in range(0, len(feature_weights)):
+		tp_count = sum([1 for x in pred_dict.values() if x[0] > 0 and x[1] > 0])
+		tn_count = sum([1 for x in pred_dict.values() if x[0] < 0 and x[1] < 0])
+		if len(neg_feature_weights) > 0 and (tp_count/pos_count >= tn_count/neg_count or len(pos_feature_weights) == 0):
+			resorted_feature_weights.append(neg_feature_weights[0])
+			for seqid in seqid_list:
+				pred_dict[seqid][1] += scores[neg_feature_weights[0][0]][seqid]
+			del neg_feature_weights[0]
+		else:
+			resorted_feature_weights.append(pos_feature_weights[0])
+			for seqid in seqid_list:
+				pred_dict[seqid][1] += scores[pos_feature_weights[0][0]][seqid]
+			del pos_feature_weights[0]
+	feature_weights = resorted_feature_weights
+
+
 	score_lists = {seqid: [scores["Intercept"]]+[scores[ft_name][seqid] for ft_name, weight in feature_weights] for seqid in seqid_list}
 	data = np.asarray([[response_dict[seqid], sum(score_lists[seqid])]+score_lists[seqid] for seqid in seqid_list], dtype="float")
 	header = ["Response","Prediction","Intercept"] + [ft_name for ft_name, weight in feature_weights]
@@ -157,7 +181,9 @@ def aim_graphic(scores, feature_weights, response_dict, args):
 
 	pred_cnts = []
 	cutoff_idx = None
-	cutoff_thresh = 0.9
+	# with open("test_file.txt", 'w') as file:
+	# 	for seqid in seqid_list:
+	# 		file.write("{}\t{}\t{}\n".format(seqid, response_dict[seqid], "\t".join([str(val) for val in score_lists[seqid]])))
 	for window_idx in range(0, len(feature_weights)-1):
 		pred_cnts.append({"TP": 0, "TN": 0, "FP": 0, "FN": 0})
 		for seqid in response_dict.keys():
@@ -172,17 +198,19 @@ def aim_graphic(scores, feature_weights, response_dict, args):
 					pred_cnts[window_idx]["FP"] += 1
 				elif score < 0:
 					pred_cnts[window_idx]["TN"] += 1
-		if cutoff_idx is None and pred_cnts[window_idx]["TP"] / (pred_cnts[window_idx]["FN"] + pred_cnts[window_idx]["TP"]) >= cutoff_thresh and pred_cnts[window_idx]["TN"] / (pred_cnts[window_idx]["FP"] + pred_cnts[window_idx]["TN"]) >= cutoff_thresh:
+		if cutoff_idx is None and pred_cnts[window_idx]["TP"] / (pred_cnts[window_idx]["FN"] + pred_cnts[window_idx]["TP"]) >= args.aim_acc_cutoff and pred_cnts[window_idx]["TN"] / (pred_cnts[window_idx]["FP"] + pred_cnts[window_idx]["TN"]) >= args.aim_acc_cutoff:
 			cutoff_idx = window_idx
 		# print(window_idx)
 		# print(pred_cnts[window_idx])
 	if cutoff_idx is None:
-		plt.close()
-		return 0
+		cutoff_idx = 0
+	# 	plt.close()
+	# 	return 0
 	dropped_fname = "aim_dropped.txt"
-	with open(os.path.join(args.output, dropped_fname), 'w') as file:
-		for ft_idx in range(0, cutoff_idx):
-			file.write("{}\n".format(feature_weights[ft_idx][0]))
+	if cutoff_idx > 0:
+		with open(os.path.join(args.output, dropped_fname), 'w') as file:
+			for ft_idx in range(0, cutoff_idx):
+				file.write("{}\n".format(feature_weights[ft_idx][0]))
 
 	# x = numpy.arange(args.top_ft_window, (window_cnt + 1) * args.top_ft_window, args.top_ft_window)
 	x = np.arange(1, len(feature_weights), 1)
@@ -195,9 +223,9 @@ def aim_graphic(scores, feature_weights, response_dict, args):
 	ax2.plot(x, acc, marker='o', label='Acc', ms=1)
 	ax2.plot(x, tpr, marker='s', label='TPR', ms=1)
 	ax2.plot(x, tnr, marker='^', label='FPR', ms=1)
-	ax2.axvline(x=cutoff_idx + 1.5, color = 'b')
-
-	ax.axvline(x=(cutoff_idx + 3) * 20, color='b')
+	if cutoff_idx > 0:
+		ax2.axvline(x=cutoff_idx + 1.5, color='b')
+		ax.axvline(x=(cutoff_idx + 3) * 20, color='b')
 
 	# Adding plot details
 	ax2.set_title('Line Plot of Acc, TPR, and TNR')
@@ -208,7 +236,7 @@ def aim_graphic(scores, feature_weights, response_dict, args):
 
 	plt.savefig(output, dpi=DPI, bbox_inches='tight')
 	plt.close()
-	return cutoff_idx + 1
+	return cutoff_idx
 
 
 def main(predictions_table, lead_cols=4, response_idx=2, prediction_idx=3, output=None, ssq_threshold=0, gene_limit=100, m_grid=False, species_limit=100):
