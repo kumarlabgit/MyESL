@@ -447,7 +447,7 @@ def generate_lambda_list(args, file_dict):
 		for lambda1 in z_list:
 			for lambda2 in y_list:
 				lambda_list.append((lambda1, lambda2))
-				file.write("{:g}\t{:g}\n".format(lambda1, lambda2))
+				file.write("{}\t{}\n".format(numpy.format_float_positional(lambda1), numpy.format_float_positional(lambda2)))
 	new_files['lambda_list_file'] = [os.path.join(args.output, "lambda_list.txt".format(args.output))]
 	return new_files
 
@@ -1214,11 +1214,16 @@ def grid_search(args):
 
 
 def lambda_val2label(lambda_val):
-	lambda_val = float(lambda_val)
-	if "{:g}".format(lambda_val)[0:2] == "0.":
-		return "{:g}".format(lambda_val)[2:]
+	lambda_string = numpy.format_float_positional(float(lambda_val))
+	if lambda_string[0:2] == "0.":
+		return lambda_string[2:]
 	else:
-		return "{:g}".format(lambda_val)
+		return lambda_string
+	# lambda_val = float(lambda_val)
+	# if "{:g}".format(lambda_val)[0:2] == "0.":
+	# 	return "{:g}".format(lambda_val)[2:]
+	# else:
+	# 	return "{:g}".format(lambda_val)
 
 
 def lookup_by_names(tree):
