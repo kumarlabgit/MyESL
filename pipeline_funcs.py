@@ -328,6 +328,12 @@ def generate_hypothesis_set(args):
 def generate_input_matrices(args, file_dict):
 	new_files = {'response_files': [], 'group_indices_files': [], 'features_files': [], 'field_files': [], 'feature_mapping_files': [], 'pos_stats_files': []}
 	aln_file_list = {}
+
+	with open(args.aln_list, 'r') as file:
+		aln_dir = os.path.dirname(args.aln_list)
+		for line in file:
+			for aln_filename in line.strip().split(","):
+				aln_file_list[os.path.splitext(os.path.basename(aln_filename.strip()))[0]] = os.path.join(aln_dir, aln_filename.strip())
 	gene_list = []
 	group_list = []
 	partitions_max = 1.0
@@ -388,7 +394,7 @@ def generate_input_matrices(args, file_dict):
 			subprocess.call(preprocess_cmd.split("*"), stderr=subprocess.STDOUT, cwd=preprocess_cwd)
 			if not args.disable_mc:
 				partitions_max = max(partitions_max, check_memory("feature_{}.txt".format(hypothesis_basename), args.output))
-			if args.data_type != "numeric" and partitions_max <= 1.0:
+			if args.data_type != "numeric" and partitions_max <= 2.0:
 				print("Calculating position statistics...")
 				position_stats = {}
 				#stat_keys = ["mic", "entropy"]
@@ -1080,6 +1086,7 @@ def aim_search(args):
 				os.path.join(args.output, os.path.basename(gs_files['hypothesis_files'][j]).replace("_hypothesis.txt".format(args.output), ".txt")))
 	feature_map = {}
 	aim_part_dir = None
+	pos_stats_filename = None
 	while iter_ct < args.aim_max_iter:
 		aim_args = copy.deepcopy(args)
 		iter_ct += 1
@@ -1116,9 +1123,11 @@ def aim_search(args):
 		# move/rename outputs to clear for next iteration (leave inputs in place)
 		aim_part_dir = os.path.join(args.output, "{}_part{}".format(os.path.basename(args.output), iter_ct))
 		os.mkdir(aim_part_dir)
-		inputs_list = [args.aln_list, os.path.join(args.output, "aim_dropped_idx.txt")]
+		if pos_stats_filename is None:
+			pos_stats_filename = aim_iter_files["pos_stats_files"][0]
+		inputs_list = [args.aln_list, os.path.join(args.output, "aim_dropped_idx.txt"), pos_stats_filename]
 		for filetype in aim_iter_files.keys():
-			if filetype in ["hypothesis_files","response_files","xval_id_files","features_files","feature_mapping_files","group_indices_files","field_files","lambda_list_file","sweights_files","slep_opts_files","pos_stats_files"]:
+			if filetype in ["hypothesis_files","response_files","xval_id_files","features_files","feature_mapping_files","group_indices_files","field_files","lambda_list_file","sweights_files","slep_opts_files"]:
 				for file_list in aim_iter_files[filetype]:
 					if isinstance(file_list, str):
 						# shutil.move(file_list, aim_part_dir)
@@ -1146,6 +1155,12 @@ def aim_search(args):
 		# 		print(aim_iter_files[key])
 	# dump selected_features to a text file.
 	with open(os.path.join(args.output, "aim_dropped.txt"), 'w') as outfile:
+		pos_stats = {}
+		with open(pos_stats_filename, 'r') as pos_stats_file:
+			for line in pos_stats_file:
+				data = line.strip().split("\t")
+				pos_stats[data[0].strip()] = data[1].strip()
+		outfile.write("{}\t{}\n".format("Position Name", pos_stats["Position Name"]))
 		for part_idx in range(1, iter_ct + 1):
 			part_dir = os.path.join(args.output, "{}_part{}".format(os.path.basename(args.output), part_idx))
 			shutil.move(os.path.join(part_dir, "aim_out.png"), os.path.join(args.output, "aim_out_{}.png".format(part_idx)))
@@ -1155,7 +1170,7 @@ def aim_search(args):
 				break
 			with open(os.path.join(part_dir, "aim_dropped.txt"), 'r') as infile:
 				for line in infile:
-					outfile.write("{}\n".format(line.strip()))
+					outfile.write("{}\t{}\n".format(line.strip(), pos_stats["_".join(line.strip().split("_")[:-1])]))
 	return aim_files
 
 
@@ -1494,6 +1509,7 @@ def cleanup_directory(args, file_dict):
 					pass
 	if not args.preserve_inputs:
 		for output_type in ["features", "feature_mapping", "field", "pos_stats", "response", "xval_id", "group_indices", "slep_opts", "sweights"]:
+		#for output_type in ["features", "feature_mapping", "field", "response", "xval_id", "group_indices", "slep_opts", "sweights"]:
 			for fname in file_dict.get("{}_files".format(output_type), []):
 				try:
 					os.remove(fname)

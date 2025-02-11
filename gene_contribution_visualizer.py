@@ -159,12 +159,12 @@ def aim_graphic(scores, feature_weights, response_dict, args):
 	ax.set_xticklabels(header, rotation=90, ha='left', size=label_size)
 	ax.set_yticks(np.arange(0, num_rows * ytick_width, ytick_width))
 	ax.set_yticklabels(seqid_list, va="top", size=label_size)
-	ax.set_xlabel('Group Names', fontsize=label_size * 1.25)
-	ax.set_ylabel('Sequence IDs', fontsize=label_size * 1.25)
+	ax.set_xlabel('Feature Names', fontsize=label_size * 1.25)
+	ax.set_ylabel('Sample IDs', fontsize=label_size * 1.25)
 	if m_grid:
 		ax.set_title('M-Grid', fontsize=label_size * 1.75)
 	else:
-		ax.set_title('Group Sparsity Scores', fontsize=label_size * 1.75)
+		ax.set_title('Feature Weights', fontsize=label_size * 1.75)
 	for (i, j), z in np.ndenumerate(data):
 		if not m_grid:
 			if j < lead_cols - 1:
@@ -228,9 +228,9 @@ def aim_graphic(scores, feature_weights, response_dict, args):
 		ax.axvline(x=(cutoff_idx + 3) * 20, color='b')
 
 	# Adding plot details
-	ax2.set_title('Line Plot of Acc, TPR, and TNR')
+	ax2.set_title('Accuracy')
 	ax2.set_xlabel('Selected Top Features')
-	ax2.set_ylabel('Accuracy')
+	# ax2.set_ylabel('Accuracy')
 	ax2.grid(True)
 	ax2.legend()
 
