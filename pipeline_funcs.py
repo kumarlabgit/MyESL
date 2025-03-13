@@ -1508,7 +1508,7 @@ def cleanup_directory(args, file_dict):
 				except:
 					pass
 	if not args.preserve_inputs:
-		for output_type in ["features", "feature_mapping", "field", "pos_stats", "response", "xval_id", "group_indices", "slep_opts", "sweights"]:
+		for output_type in ["features", "feature_mapping", "field", "pos_stats", "response", "xval_id", "slep_opts", "sweights"]:
 		#for output_type in ["features", "feature_mapping", "field", "response", "xval_id", "group_indices", "slep_opts", "sweights"]:
 			for fname in file_dict.get("{}_files".format(output_type), []):
 				try:

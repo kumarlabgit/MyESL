@@ -40,10 +40,11 @@ def read_model(filename):
 def extract_gene_sums(aln_list, model):
 	gene_files = {}
 	gene_sums = {}
+	aln_list_dir = os.path.dirname(aln_list)
 	with open(aln_list, 'r') as file:
 		for line in file:
 			for aln_filename in line.strip().split(","):
-				gene_files[os.path.splitext(os.path.basename(aln_filename.strip()))[0]] = aln_filename.strip()
+				gene_files[os.path.splitext(os.path.basename(aln_filename.strip()))[0]] = os.path.join(aln_list_dir, aln_filename.strip())
 	found_gene_list = list(gene_files.keys())
 	for gene in model.keys():
 		if gene == "Intercept":
@@ -122,10 +123,13 @@ def parse_response_file(response_filename, species_list):
 
 def main(args):
 	model_dir = os.path.dirname(args.model)
-	model_basename = os.path.splitext(os.path.basename(args.model))[0].replace("_hypothesis", "").replace("_mapped_feature_weights", "")
+	#model_basename = os.path.splitext(os.path.basename(args.model))[0].replace("_hypothesis", "").replace("_mapped_feature_weights", "")
+	model_basename = "_".join(os.path.splitext(os.path.basename(args.model))[0].replace("MyESL_model_", "").split("_")[:-2])
+	print(model_basename)
 	if args.output is None:
 		args.output = "{}_applied_gene_prediction.txt".format(model_basename)
-	model = read_model(os.path.join(model_dir, model_basename + "_mapped_feature_weights.txt"))
+	# model = read_model(os.path.join(model_dir, model_basename + "_mapped_feature_weights.txt"))
+	model = read_model(args.model)
 	gene_sums = extract_gene_sums(args.aln_list, model)
 
 	species_list = set()
@@ -136,12 +140,13 @@ def main(args):
 	if args.response is not None:
 		response = parse_response_file(args.response, species_list)
 	else:
-		response = {seq_id: 0 for seq_id in species_list}
+		response = {seq_id: 'nan' for seq_id in species_list}
 
 	weighted_group_sums = apply_group_weights(args.aln_list, gene_sums, os.path.join(model_dir, "group_indices_" + model_basename + "_hypothesis.txt"), species_list)
 
 	gene_list = list(gene_sums.keys())
 	group_list = list(weighted_group_sums.keys())
+
 
 
 
@@ -158,7 +163,6 @@ def main(args):
 			for group in group_list:
 				prediction += weighted_group_sums[group].get(seq_id, 0)
 			file.write("{}\t{}\t{}\t{}\t{}\n".format(seq_id, response[seq_id], prediction, model["Intercept"], "\t".join([str(weighted_group_sums[group].get(seq_id, numpy.nan)) for group in group_list])))
-
 	gcv_files = gcv.main(args.output, gene_limit=args.gene_display_limit, ssq_threshold=args.gene_display_cutoff, m_grid=args.m_grid)
 
 

@@ -285,8 +285,12 @@ def main(predictions_table, lead_cols=4, response_idx=2, prediction_idx=3, outpu
 
 	# Sort rows by expit of predicted value
 	pr = list(zip([1/(1 + math.exp(-x)) for x in data[:, 1]], data[:, 0]))
-	max_pr = max([val[0] for val in pr if val[1] > 0])
-	min_pr = min([val[0] for val in pr if val[1] < 0])
+	try:
+		max_pr = max([val[0] for val in pr if val[1] > 0])
+		min_pr = min([val[0] for val in pr if val[1] < 0])
+	except:
+		max_pr = max([val[0] for val in pr])
+		min_pr = min([val[0] for val in pr])
 	scp = []
 	for val in pr:
 		if val[1] > 0:
@@ -300,7 +304,8 @@ def main(predictions_table, lead_cols=4, response_idx=2, prediction_idx=3, outpu
 		sorted_rows.sort(key=lambda tup: (tup[2], -tup[3]), reverse=True)
 	else:
 		sorted_rows.sort(key=lambda tup: (tup[2], tup[3]), reverse=True)
-	data = data[[val[0] for val in sorted_rows]]
+	if len(sorted_rows) > 0:
+		data = data[[val[0] for val in sorted_rows]]
 	if predictions_table.replace("gene_predictions", "SPS_SPP").replace("GCS_median", "SPS_SPP_median") != predictions_table:
 		with open(predictions_table.replace("gene_predictions", "SPS_SPP").replace("GCS_median", "SPS_SPP_median"), 'w') as sps_file:
 			sps_file.write("seq_id\tresponse\tSPS\tSPP\n")
