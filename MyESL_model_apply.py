@@ -113,7 +113,10 @@ def parse_response_file(response_filename, species_list):
 		custom_responses = [tuple(line.strip().split("\t")) for line in file]
 		for custom_response in custom_responses:
 			if responses[custom_response[0]] is None:
-				responses[custom_response[0]] = custom_response[1]
+				try:
+					responses[custom_response[0]] = custom_response[1]
+				except:
+					responses[custom_response[0]] = 'nan'
 			else:
 				raise Exception("Response value of sequence {} specified more than once".format(custom_response[0]))
 	# for seq_id in responses.keys():
