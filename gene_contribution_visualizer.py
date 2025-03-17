@@ -153,10 +153,11 @@ def main(predictions_table, lead_cols=4, response_idx=2, prediction_idx=3, outpu
 			sps_file.write("seq_id\tresponse\tSPS\tSPP\n")
 			for row in zip([seqid_list[sorted_row[0]] for sorted_row in sorted_rows], data[:,0], data[:,1], [sorted_row[1] for sorted_row in sorted_rows]):
 				sps_file.write("{}\n".format('\t'.join([str(val) for val in row])))
-	if m_grid:
-		seqid_list = ["{} ({:0.2f})".format(val[0], max(0,val[1])) for val in zip(seqid_list, scp)]
-	else:
-		seqid_list = ["{} ({:0.2f})".format(val[0], val[1]) for val in zip(seqid_list, scp)]
+	if len(scp) > 0:
+		if m_grid:
+			seqid_list = ["{} ({:0.2f})".format(val[0], max(0,val[1])) for val in zip(seqid_list, scp)]
+		else:
+			seqid_list = ["{} ({:0.2f})".format(val[0], val[1]) for val in zip(seqid_list, scp)]
 
 
 	# temp1 = list(range(lead_cols-1, len(data[0])))
@@ -169,7 +170,8 @@ def main(predictions_table, lead_cols=4, response_idx=2, prediction_idx=3, outpu
 		data = data[0:sum([1 for val in data[:, 0] if float(val)>0.99]), list(range(lead_cols-1, len(data[0])))]
 	if len(data) > species_limit:
 		data = data[0:species_limit]
-	seqid_list = [seqid_list[val[0]] for val in sorted_rows[0:len(data)]]
+	if len(sorted_rows) > 0:
+		seqid_list = [seqid_list[val[0]] for val in sorted_rows[0:len(data)]]
 
 	# Reset dimensions if truncation has occurred.
 	num_rows, num_cols = data.shape
