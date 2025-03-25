@@ -247,7 +247,7 @@ To perform DrPhylo analysis, get the ESL package using the following on the comm
 	git clone https://github.com/kumarlabgit/MyESL
 	cd MyESL
 
-#### MyESL pipeline uses the same directives as MyESL.exe. To perform an analysis using the example dataset, only replacing `MyESL.exe` with `python MyESL.py`
+#### MyESL pipeline uses the same directives as MyESL.exe. To analyze the example dataset, only replace `MyESL.exe` with `python MyESL.py`. To analyze datasets using MyESL on MacOS, users need to download `MyESL.zip` using this link and use `./MyESL` instead of `MyESL.exe`. All other directives are the same for Windows, Linux, and MacOS. 
 
 ## References ##
 If you use MyESL in your research, please cite our articles:
