@@ -190,19 +190,19 @@ MyESL.exe Fungi_data/aln.txt --classes Fungi_data/A_B_Hyp.txt --DrPhylo --lambda
 ```
 <br />
 
-DrPhylo produces multiple numeric outputs and a graphical output. The numeric outputs include different sparsity scores that quantify the association between features (e.g., bits, sites, genes) and hypotheses tested. The model also calculates the hypothesis sparsity scores (HSS), providing overall support for the hypothesis tested. DrPhylo usually produces all these scores in a text file format by default, and these scores are summaries for all ESL models for the clade. However, users can specify which sparsity scores need to be produced by DrPhylo using the option `--stats.` 
+DrPhylo produces multiple numeric outputs and a graphical output. The numeric outputs include different sparsity scores that quantify the association between features (e.g., bits, sites, genes) and hypotheses tested. The model also calculates the hypothesis sparsity scores (HSS), providing overall support for the hypothesis tested. DrPhylo usually produces all these scores in a text file format by default, and these scores are summaries for all ESL models for the clade. However, users can specify which sparsity scores need to be produced by DrPhylo using the option `--stats_out.` 
 
-DrPhylo outputs only gene and site sparsity scores by using the argument `--stats GS`:
+DrPhylo outputs only gene and site sparsity scores by using the argument `--stats_out GS`:
 
 ```
-MyESL.exe Fungi_data/aln.txt --classes Fungi_data/A_B_Hyp.txt --DrPhylo -- stats GS --output Fungi_test_grid_output 
+MyESL.exe Fungi_data/aln.txt --classes Fungi_data/A_B_Hyp.txt --DrPhylo -- stats_out GS --output Fungi_test_grid_output 
 
 ```
 
 The graphical output is a model grid, with each row representing the species (with normalized classification probability; CP within the parenthesis) within the clade used in the analysis and columns for genes selected by the ESL model. Each cell in the grid is the gene-species concordance (GSC) score. The model grid (M_grid) summarizes all ESL models built for the clade of interest. A positive value for the gsc implies that the gene supports the placement of the species within the clade and is presented in green. In contrast, the negative value indicates discordance, represented by red. Users can modify the grid output by specifying the number of genes and the number of species to be displayed using the option ``--m_grid``. In this case, only a specified number of species from the clade of interest will be displayed and sorted using the classification probability. 
 
 ```
-MyESL.exe Fungi_data/aln.txt --classes Fungi_data/A_B_Hyp.txt --DrPhylo -- stats GS --m_grid 20,20 --output Fungi_test_grid_output 
+MyESL.exe Fungi_data/aln.txt --classes Fungi_data/A_B_Hyp.txt --DrPhylo -- stats_out GS --m_grid 20,20 --output Fungi_test_grid_output 
 
 ```
 
