@@ -660,7 +660,7 @@ def extract_cc_counts(weights_filename, hypothesis_filename, aln_lib, cc_count_l
 	all_control_seqids = [seq_id for seq_id in hypothesis.keys() if hypothesis[seq_id] == -1]
 	cc_counts_filename = weights_filename.replace("_hypothesis", "").replace("_out_feature_weights", "_bit_counts").replace(".xml", ".txt")
 	with open(cc_counts_filename, 'w') as cc_counts_file:
-		cc_counts_file.write("feature\t+1_present\t+1_absent\t-1_present\t-1_absent\n")
+		cc_counts_file.write("feature\tweight\t+1_present\t+1_absent\t-1_present\t-1_absent\n")
 		for gene in model.keys():
 			if gene == "Intercept":
 				continue
