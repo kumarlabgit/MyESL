@@ -103,7 +103,7 @@ if __name__ == '__main__':
 			args.m_grid = "20,30"
 		if args.min_groups < 0:
 			args.min_groups = 3
-	if args.lambda1_grid is not None and args.lambda2_grid is not None and args.kfold > 1:
+	if (args.lambda1_grid is not None or args.lambda2_grid is not None) and args.kfold > 1:
 		raise Exception("Cannot use --kfold option while running in grid search mode.")
 	args.single_lambda_pair = False
 	#Convert single run to 1x1 grid run
@@ -154,8 +154,15 @@ if __name__ == '__main__':
 	if args.no_group_penalty:
 		args.lambda2 = 0.0000000001
 	args.timers = {"preprocessing": {"start": None}, "sglasso": {"start": None}, "analysis": {"start": None}}
-	if (args.grid_z is None and args.grid_y is not None) or (args.grid_y is None and args.grid_z is not None):
-		raise Exception("Only one grid search parameter specified, --grid_z and --grid_y must be specified together.")
+	if args.xval > 1:
+		if args.classes is None:
+			raise Exception("Cross validation must be used with the --classes option.")
+		if not os.path.exists(args.output):
+			os.mkdir(args.output)
+		args.aln_list = pf.aln_list_to_absolute(args.aln_list, args.output)
+		gs_files = pf.grid_search(args)
+	elif (args.grid_z is None and args.grid_y is not None) or (args.grid_y is None and args.grid_z is not None):
+		raise Exception("Only one grid search parameter specified, --lambda1_grid and --lambda2_grid must be specified together.")
 	elif args.grid_z is not None and args.grid_y is not None and args.xval <= 1:
 		gs_files = None
 		if not os.path.exists(args.output):

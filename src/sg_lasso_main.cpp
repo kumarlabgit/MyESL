@@ -1,6 +1,7 @@
 #include <set>
 #include <argparse.hpp>
 #include <armadillo>
+#include <iomanip>
 #include "sg_lasso.hpp"
 
 using namespace std;
@@ -9,7 +10,9 @@ using namespace arma;
 
 map<string, string> processSlepOpts(string filename);
 std::vector<std::tuple<double, double>> readLambdaList(string filename);
+std::vector<std::tuple<std::string, std::string>> readLambdaListAsStrings(string filename);
 std::string lambdaLabel(const double arr[], int idx);
+std::string lambdaLabel_str(std::string lambda);
 string writeModelToXMLStream(string);
 
 int main(int argc, char *argv[]) {
@@ -149,11 +152,11 @@ int main(int argc, char *argv[]) {
     for(const auto& item : xval_idxs) {
       xval_ids.insert(item);  // Insert the value into the set (automatically handles uniqueness)
     }
-    xval_idxs.print("");
+//    xval_idxs.print("");
 
 
     for(const auto& xval_id : xval_ids) {
-	  std::cout << "Performing cross validation" << xval_id << std::endl;
+	  std::cout << "Performing cross validation " << xval_id << std::endl;
       SGLasso* sgl = new SGLasso(features, responses, opts_ind, lambda, processSlepOpts(program.get<std::string>("slep")), xval_idxs, xval_id);
       ofstream fileStream(program.get<std::string>("output") + "_xval_" + std::to_string(xval_id) + model_ext);
       if (fileStream.is_open())
@@ -177,11 +180,15 @@ int main(int argc, char *argv[]) {
 
   if (program.get<std::string>("lambda_list") != "-") {
     std::vector<std::tuple<double, double>> lambda_list = readLambdaList(program.get<std::string>("lambda_list"));
+    std::vector<std::tuple<std::string, std::string>> lambda_list_str = readLambdaListAsStrings(program.get<std::string>("lambda_list"));
     double max_glambda2 = 1.0;
     double min_glambda2 = 1.0;
 
-    for (const auto& item : lambda_list) {
-	  double glambda[2] = {std::get<0>(item), std::get<1>(item)};
+//    for (const auto& item : lambda_list) {
+//	  double glambda[2] = {std::get<0>(item), std::get<1>(item)};
+	for (const auto& item : lambda_list_str) {
+	  std::string glambda_str[2] = {std::get<0>(item), std::get<1>(item)};
+	  double glambda[2] = {std::stod(glambda_str[0]), std::stod(glambda_str[1])};
 	  if (min_glambda2 > glambda[1]) {
         min_glambda2 = glambda[1];
       }
@@ -193,7 +200,7 @@ int main(int argc, char *argv[]) {
 	  SGLasso* sgl = new SGLasso(features, responses, opts_ind, glambda, processSlepOpts(program.get<std::string>("slep")));
 
       //TODO: make out filename reflect lambda pair
-	  ofstream fileStream(program.get<std::string>("output") + lambdaLabel(glambda,0) + lambdaLabel(glambda,1) + model_ext);
+	  ofstream fileStream(program.get<std::string>("output") + lambdaLabel_str(glambda_str[0]) + lambdaLabel_str(glambda_str[1]) + model_ext);
 	  if (fileStream.is_open())
 	  {
         if (omit_zeroes)
@@ -302,6 +309,28 @@ std::vector<std::tuple<double, double>> readLambdaList(string filename)
 }
 
 
+std::vector<std::tuple<std::string, std::string>> readLambdaListAsStrings(string filename)
+{
+  std::vector<std::tuple<std::string, std::string>> data;
+  std::string first, second;
+  std::ifstream file(filename);
+
+  if (!file) {
+    std::cerr << "Unable to open the file." << std::endl;
+    return data;
+  }
+  while (file.good()) {
+    if (std::getline(file, first, '\t') && std::getline(file, second)) {
+      data.emplace_back(first, second);
+    }
+  }
+
+  file.close();
+
+  return data;
+}
+
+
 std::vector<std::tuple<std::string, int>> readXValFile(string filename)
 {
   std::vector<std::tuple<std::string, int>> data;
@@ -333,8 +362,10 @@ std::string lambdaLabel(const double arr[], int idx) {
 
 
     // Convert the double to a string
-    std::string doubleStr = std::to_string(arr[idx]);
-
+    std::ostringstream streamObj;
+    streamObj << std::noshowpoint << std::fixed << std::setprecision(14) << arr[idx];
+    std::string doubleStr = streamObj.str();
+    std::cout << doubleStr << std::endl;
     // Find "0." at the beginning of the string and erase it if present
     if(doubleStr.substr(0, 2) == "0.") {
         doubleStr.erase(0, 2);
@@ -349,5 +380,14 @@ std::string lambdaLabel(const double arr[], int idx) {
     while (pos > 0 && doubleStr[pos-1] == '0') {
         --pos;
     }
+    std::cout << "_" + doubleStr.substr(0, pos) << std::endl;
     return "_" + doubleStr.substr(0, pos);
+}
+
+
+std::string lambdaLabel_str(std::string lambda) {
+    if (lambda.substr(0, 2) == "0.") {
+        lambda.erase(0, 2);
+    }
+    return "_" + lambda;
 }
