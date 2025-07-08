@@ -71,6 +71,7 @@ class alnData
 		void setDiskCaching(bool useDiskCache);
 		void setCacheDir(string dirName);
 		void setIndelFuzzing(bool indelFuzzing);
+		void setFlatWeights(bool flatWeights);
 		void setDataType(string dataType);
 		void setThreads(int threadCount);
 		void balanceSample();
@@ -88,6 +89,7 @@ class alnData
 		bool caseSensitive = true;
 		bool numericInput = false;
 		bool numericHeaders = false;
+		bool flatWeights = false;
 		char inputDelimiter = '\t';
 		int threads = 1;
 		int countThreshold;

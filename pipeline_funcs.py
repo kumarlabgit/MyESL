@@ -338,6 +338,8 @@ def generate_input_matrices(args, file_dict):
 		options = "{} {}".format(options.strip(), "db")
 	if args.fuzz_indels:
 		options = "{} {}".format(options.strip(), "fuzzIndels")
+	if args.method == "gl_logistic":
+		options = "{} {}".format(options.strip(), "flatWeights")
 	if args.bit_ct > 1:
 		options = "{} {} {}".format(options.strip(), "ct", args.bit_ct)
 	if args.data_type != "universal":
@@ -446,6 +448,8 @@ def run_sg_lasso(args, file_dict):
 		method = "overlapping_sg_lasso_leastr"
 	elif args.method == "ol_logistic":
 		method = "overlapping_sg_lasso_logisticr"
+	elif args.method == "gl_logistic":
+		method = "gl_logisticr"
 	else:
 		raise Exception("Provided method name not recognized, please provide a valid method name.")
 	if os.name == "posix":

@@ -9,7 +9,8 @@ cd src
 ..\..\mingw64\bin\g++ -std=c++17 sg_lasso_leastr_main.cpp sg_lasso_leastr.cpp -static libopenblas.dll -static liblapack.dll -o sg_lasso_leastr -Iinclude -static -lpthread
 ..\..\mingw64\bin\g++ -std=c++17 overlapping_sg_lasso_leastr_main.cpp overlapping_sg_lasso_leastr.cpp -static libopenblas.dll -static liblapack.dll -o overlapping_sg_lasso_leastr -Iinclude -static -lpthread
 ..\..\mingw64\bin\g++ -std=c++17 overlapping_sg_lasso_logisticr_main.cpp overlapping_sg_lasso_logisticr.cpp -static libopenblas.dll -static liblapack.dll -o overlapping_sg_lasso_logisticr -Iinclude -static -lpthread
-mv preprocess.exe sg_lasso.exe sg_lasso_leastr.exe overlapping_sg_lasso_leastr.exe overlapping_sg_lasso_logisticr.exe ../bin
+..\..\mingw64\bin\g++ -std=c++17 slep_main.cpp gl_logisticr.cpp slep_utils.cpp -static libopenblas.dll -static liblapack.dll -o gl_logisticr -Iinclude -static -lpthread
+mv preprocess.exe sg_lasso.exe sg_lasso_leastr.exe overlapping_sg_lasso_leastr.exe overlapping_sg_lasso_logisticr.exe gl_logisticr.exe ../bin
 cp *.dll ..\bin
 cp *.lib ..\bin
 cd ..

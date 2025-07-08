@@ -87,6 +87,11 @@ void alnData::setIndelFuzzing(bool indelFuzzing)
 	this->indelFuzzing = indelFuzzing;
 }
 
+void alnData::setFlatWeights(bool flatWeights)
+{
+	this->flatWeights = flatWeights;
+}
+
 void alnData::setDataType(string dataType)
 {
 	this->dataType = dataType;
@@ -980,7 +985,14 @@ void alnData::generateGroupIndicesFile(string baseName)
 			}
 			indStarts.append(to_string(groupStart) + this->outputDelimiter);
 			indEnds.append(to_string(groupEnd) + this->outputDelimiter);
-			weight = sqrt(1+(groupEnd - groupStart));
+			if (this->flatWeights)
+			{
+				weight = 1;
+			}
+			else
+			{
+				weight = sqrt(1+(groupEnd - groupStart));
+			}
 			weights.append(to_string(weight) + this->outputDelimiter);
 			groupStart = groupEnd + 1;
 		}

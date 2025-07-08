@@ -49,7 +49,7 @@ if __name__ == '__main__':
 	parser.add_argument("--stats_out", help="<str[PGHS]*> Various single-character flags for output produced, consult README for more info.", type=str, default="")
 	parser.add_argument("--data_type", help="<Options are \"nucleotide\", \"protein\", \"molecular\", \"universal\". Consult documentation for detailed info.", type=str, default="universal")
 	parser.add_argument("--DrPhylo", help="Run Dr Phylo type analysis.", action='store_true', default=False)
-	parser.add_argument("--method", help="SGLasso type to use. Options are \"logistic\" or \"leastr\". Defaults to \"logistic\".", type=str, default="logistic")
+	parser.add_argument("--method", help="SGLasso type to use. Sparse group LASSO Options are \"logistic\" or \"leastr\". Ridge regression options are \"gl_logistic\". Defaults to \"logistic\".", type=str, default="logistic")
 	parser.add_argument("--threads", help="Number of threads to use where applicable.", type=int, default=None)
 	parser.add_argument("--subsets", help="Number of group-wise sub-sets to split the data into initially (Use 0 for automatic determination based on free memory).", type=int, default=None)
 
