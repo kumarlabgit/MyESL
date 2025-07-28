@@ -159,18 +159,32 @@ This will output group sparsity scores and species prediction scores in text for
 
 <details>
 <summary><strong>Prediction using MyESL</strong></summary>
-MyESL provides a separate pipeline `` MyESL_model_apply.exe `` for applying the ESL model to predict traits or determine the clade membership of new species. To use this feature, users must provide sequence alignments that are aligned with the training alignments. For example, we want to predict the membership of a list of species using the ESL model for the control clade. The key inputs are 
+
+MyESL provides a separate pipeline ``MyESL_model_apply.exe`` for applying the ESL model to predict traits or determine the clade membership of new species. To use this feature, users must provide sequence alignments that are aligned with the training alignments. The key inputs are 
 
 ```
-ESL model:      An ESL model built for the clade of interest. The ESL model is stored in a directory named starting with MyESL_model. 
-Alignment list: A text file containing the full path for the alignments of new species. These alignments must be aligned with the sequence alignments of the test species. 
-Response file:  A text file containing the name of the species (one per line) for which we want the prediction score. 
+ESL Model:      An ESL model constructed for the clade of interest, stored in a directory with a name starting with MyESL_model.
+Alignment List: A text file listing the full paths to the alignments of new species. These alignments must be aligned with those used for the training species.
+Response File:  A text file containing the names of the species (one per line) for which prediction scores are to be generated. 
 ```
 An example Model file 
+<img width="1769" height="318" alt="image" src="https://github.com/user-attachments/assets/c52cf46b-110b-4754-8924-b384b1c5f5ea" />
+\
+\
+An example response file ``Species_list_for_prediction.txt`` 
 
-An example response file 
-<img width="278" height="191" alt="image" src="https://github.com/user-attachments/assets/7f9d0894-e78f-4308-917b-2c2dfde96ae0" />
 
+<img width="1099" height="195" alt="image" src="https://github.com/user-attachments/assets/d8b4bf56-12dd-457c-849d-6011a2e69716" />
+
+The prediction score, the probability of these new species being members of the clade of interest (Control clade), can be calculated using   
+```
+MyESL_model_apply.exe Output\MyESL_model_Control_1_1.txt Fungi_data\aln.txt --response Fungi_data\Speceis_for_prediction.txt --output Prediction_out 
+
+```
+
+This will generate a text file containing the species name, prediction score, and the contribution of each selected group to the prediction, along with a grid-format image visualizing these results.
+
+<img width="686" height="189" alt="image" src="https://github.com/user-attachments/assets/92a60f05-8d92-4d25-a260-875b7fb8e075" />
 
 </details>
 
