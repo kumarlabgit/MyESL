@@ -143,7 +143,18 @@ MyESL.exe Fungi_data\aln.txt --classes Path\Continuous_response.txt --lambda1 0.
 
 ```
 
-Users can also output different sparsity scores using the directive ``--stats_out``, where
+Users can also output different sparsity scores using the directive ``--stats_out``, where 
+P: Site-level (position) sparsity scores
+G: Gene or group sparsity scores
+H: Hypothesis sparsity score
+S: Species prediction scores
+
+```
+MyESL.exe Fungi_data\aln.txt --classes Path\Continuous_response.txt --lambda1 0.1 --lambda2 0.2 --DrPhylo --m_grid 20,20 --stats_out GS
+
+```
+This will output group sparsity scores and species prediction scores in text format. 
+
 </details>
 
 <details>
