@@ -159,6 +159,17 @@ This will output group sparsity scores and species prediction scores in text for
 
 <details>
 <summary><strong>Prediction using MyESL</strong></summary>
+MyESL provides a separate pipeline `` MyESL_model_apply.exe `` for applying the ESL model to predict traits or determine the clade membership of new species. To use this feature, users must provide sequence alignments that are aligned with the training alignments. For example, we want to predict the membership of a list of species using the ESL model for the control clade. The key inputs are 
+
+```
+ESL model:      An ESL model built for the clade of interest. The ESL model is stored in a directory named starting with MyESL_model. 
+Alignment list: A text file containing the full path for the alignments of new species. These alignments must be aligned with the sequence alignments of the test species. 
+Response file:  A text file containing the name of the species (one per line) for which we want the prediction score. 
+```
+An example Model file 
+
+An example response file 
+<img width="278" height="191" alt="image" src="https://github.com/user-attachments/assets/7f9d0894-e78f-4308-917b-2c2dfde96ae0" />
 
 
 </details>
