@@ -52,6 +52,7 @@ MyESL.exe Fungi_data\aln.txt --classes Fungi_data\A_B_Hyp.txt
 
 <details>
 <summary><strong>Model Options</strong></summary>
+
 MyESL uses site and gene sparsity parameters equal to ``0.1`` by default. These parameters can be set by ``lambda1`` and ``lambda2``. 
 
 ```
@@ -117,6 +118,7 @@ MyESL.exe Fungi_data\aln.txt --tree Fungi_data\Fungi_T1_with_ID.nwk  --class_bal
 
 <details>
 <summary><strong>DrPhylo with MyESL</strong></summary>
+
 MyESL enables DrPhylo analysis for a specified clade, either defined by clade ID using a phylogeny in a NEWICK format or via a response file in text format. DrPhylo builds multiple sparse models across combinations of site and group sparsity parameters. By default, it explores values from 0.1 to 0.9 (in steps of 0.1), generating 81 models. Users can customize this range using the "--lambda_grid" directive. To reduce computation, DrPhylo skips models that include fewer than three genes. It outputs summary statistics, including PSS, GSS, and HSS scores, as well as a model grid. 
 
 ```
