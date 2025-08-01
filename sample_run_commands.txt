@@ -1,2 +1,2 @@
 MyESL.exe Fungi_data\aln.txt --classes Fungi_data\A_B_Hyp.txt --lambda1 0.1 --lambda2 0.2 --output Fungi_clade_models
-MyESL.exe Fungi_data\aln.txt --classes Path\Continuous_response.txt --lambda1 0.1 --lambda2 0.2 --DrPhylo --m_grid 20,20 --output Fungi_DrPhylo
+MyESL.exe Fungi_data\aln.txt --classes Fungi_data\Continuous_response.txt --lambda1 0.1 --lambda2 0.2 --DrPhylo --m_grid 20,20 --output Fungi_DrPhylo
