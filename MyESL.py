@@ -49,7 +49,8 @@ if __name__ == '__main__':
 	parser.add_argument("--include_singletons", help="Include singleton sites in analysis.", action='store_true', default=False)
 	parser.add_argument("--stats_out", help="<str[PGHS]*> Various single-character flags for output produced, consult README for more info.", type=str, default="")
 	parser.add_argument("--data_type", help="<Options are \"nucleotide\", \"protein\", \"molecular\", \"universal\". Consult documentation for detailed info.", type=str, default="universal")
-	parser.add_argument("--method", help="SGLasso type to use. Options are \"logistic\" or \"leastr\". Defaults to \"logistic\".", type=str, default="logistic")
+	parser.add_argument("--DrPhylo", help="Run Dr Phylo type analysis.", action='store_true', default=False)
+	parser.add_argument("--method", help="SGLasso type to use. Sparse group LASSO Options are \"logistic\" or \"leastr\". Ridge regression options are \"gl_logistic\". Defaults to \"logistic\".", type=str, default="logistic")
 	parser.add_argument("--threads", help="Number of threads to use where applicable.", type=int, default=None)
 	parser.add_argument("--subsets", help="Number of group-wise sub-sets to split the data into initially (Use 0 for automatic determination based on free memory).", type=int, default=None)
 	parser.add_argument("--dropout", help="File containing list of feature indices to ignore.", type=str, default=None)
@@ -59,7 +60,6 @@ if __name__ == '__main__':
 	parser.add_argument("--aim_max_ft", help="Maximum number of features to select in AIM mode.", type=int, default=1000)
 	parser.add_argument("--aim_window", help="Window of top features to select from at each AIM iteration.", type=int, default=100)
 	parser.add_argument("--aim_acc_cutoff", help="Minimum balanced accuracy a set of features must achieve to be selected.", type=float, default=0.9)
-	parser.add_argument("--DrPhylo", help="Run Dr Phylo type analysis.", action='store_true', default=False)
 	parser.add_argument("--AIM", help="Run ancestry informative markers analysis.", action='store_true', default=False)
 
 	args = parser.parse_args()
@@ -135,7 +135,7 @@ if __name__ == '__main__':
 			args.m_grid = "20,30"
 		if args.min_groups < 0:
 			args.min_groups = 3
-	if args.lambda1_grid is not None and args.lambda2_grid is not None and args.kfold > 1:
+	if (args.lambda1_grid is not None or args.lambda2_grid is not None) and args.kfold > 1:
 		raise Exception("Cannot use --kfold option while running in grid search mode.")
 	args.single_lambda_pair = False
 	if args.AIM:
@@ -197,7 +197,14 @@ if __name__ == '__main__':
 	if args.no_group_penalty:
 		args.lambda2 = 0.0000000001
 	args.timers = {"preprocessing": {"start": None}, "sglasso": {"start": None}, "analysis": {"start": None}}
-	if (args.grid_z is None and args.grid_y is not None) or (args.grid_y is None and args.grid_z is not None):
+	if args.xval > 1:
+		if args.classes is None:
+			raise Exception("Cross validation must be used with the --classes option.")
+		if not os.path.exists(args.output):
+			os.mkdir(args.output)
+		args.aln_list = pf.aln_list_to_absolute(args.aln_list, args.output)
+		gs_files = pf.grid_search(args)
+	elif (args.grid_z is None and args.grid_y is not None) or (args.grid_y is None and args.grid_z is not None):
 		raise Exception("Only one grid search parameter specified, --lambda1_grid and --lambda2_grid must be specified together.")
 	elif args.grid_z is not None and args.grid_y is not None and args.xval <= 1:
 		gs_files = None

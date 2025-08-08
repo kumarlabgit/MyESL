@@ -126,12 +126,9 @@ def parse_response_file(response_filename, species_list):
 
 def main(args):
 	model_dir = os.path.dirname(args.model)
-	#model_basename = os.path.splitext(os.path.basename(args.model))[0].replace("_hypothesis", "").replace("_mapped_feature_weights", "")
 	model_basename = "_".join(os.path.splitext(os.path.basename(args.model))[0].replace("MyESL_model_", "").split("_")[:-2])
-	print(model_basename)
 	if args.output is None:
 		args.output = "{}_applied_gene_prediction.txt".format(model_basename)
-	# model = read_model(os.path.join(model_dir, model_basename + "_mapped_feature_weights.txt"))
 	model = read_model(args.model)
 	gene_sums = extract_gene_sums(args.aln_list, model)
 
@@ -149,7 +146,6 @@ def main(args):
 
 	gene_list = list(gene_sums.keys())
 	group_list = list(weighted_group_sums.keys())
-
 
 
 

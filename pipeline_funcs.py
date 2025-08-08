@@ -347,6 +347,8 @@ def generate_input_matrices(args, file_dict):
 		options = "{} {}".format(options.strip(), "db")
 	if args.fuzz_indels:
 		options = "{} {}".format(options.strip(), "fuzzIndels")
+	if args.method == "gl_logistic":
+		options = "{} {}".format(options.strip(), "flatWeights")
 #	if args.bit_ct > 1:
 #		options = "{} {} {}".format(options.strip(), "ct", args.bit_ct)
 	if args.data_type != "universal":
@@ -459,7 +461,7 @@ def generate_lambda_list(args, file_dict):
 
 
 def run_sg_lasso(args, file_dict):
-	new_files = {"weights_files": []}
+	new_files = {"weights_files": [], "xval_weights_files": []}
 	if args.method == "leastr":
 		method = "sg_lasso_leastr"
 	elif args.method == "logistic":
@@ -468,6 +470,8 @@ def run_sg_lasso(args, file_dict):
 		method = "overlapping_sg_lasso_leastr"
 	elif args.method == "ol_logistic":
 		method = "overlapping_sg_lasso_logisticr"
+	elif args.method == "gl_logistic":
+		method = "gl_logisticr"
 	else:
 		raise Exception("Provided method name not recognized, please provide a valid method name.")
 	if os.name == "posix":
@@ -479,8 +483,8 @@ def run_sg_lasso(args, file_dict):
 		for line in file:
 			data = line.strip().split("\t")
 			lambda_list.append((data[0], data[1]))
-	for response_filename, features_filename, groups_filename, field_filename, slep_opts_filename in \
-			zip(file_dict["response_files"], file_dict["features_files"], file_dict["group_indices_files"], file_dict["field_files"], file_dict["slep_opts_files"]):
+	for response_filename, features_filename, groups_filename, field_filename, slep_opts_filename, xval_ids_filename in \
+			zip(file_dict["response_files"], file_dict["features_files"], file_dict["group_indices_files"], file_dict["field_files"], file_dict["slep_opts_files"], file_dict["xval_id_files"]):
 		basename = str(os.path.splitext(os.path.basename(response_filename))[0]).replace("response_", "")
 		if slep_opts_filename is None:
 			esl_cmd = "{}*-f*{}*-z*{}*-y*{}*-n*{}*-r*{}*-w*{}".format(esl_exe, features_filename, args.lambda1, args.lambda2, groups_filename, response_filename, os.path.join(args.output, basename + "_out_feature_weights"))
@@ -491,26 +495,33 @@ def run_sg_lasso(args, file_dict):
 		esl_cmd = esl_cmd + "*-l*{}".format(file_dict["lambda_list_file"][0])
 		if args.grid_gene_threshold > 0:
 			esl_cmd = esl_cmd + "*-c*{}".format(args.grid_gene_threshold)
+		if args.xval > 1:
+			esl_cmd = esl_cmd + "*-x*{}".format(xval_ids_filename)
 		esl_cmd = esl_cmd + "*--model_format*flat"
 		if args.dropout is not None:
 			esl_cmd = esl_cmd + "*--dropout*{}".format(args.dropout)
 		print(esl_cmd.replace("*", " "))
 		subprocess.call(esl_cmd.split("*"), stderr=subprocess.STDOUT)
 		new_files["weights_files"].append([os.path.join(args.output, "{}_out_feature_weights_{}_{}.txt".format(basename, lambda_val2label(val[0]), lambda_val2label(val[1]))) for val in lambda_list])
+		if args.xval > 1:
+			new_files["xval_weights_files"].append([os.path.join(args.output, "{}_out_feature_weights_xval_{}.txt".format(basename, val)) for val in range(1, args.xval + 1)])
 	return new_files
 
 
 def process_weights(args, file_dict):
-	new_files = {"gene_prediction_files": [], "HSS_file": [], "GSS_files": [], "PSS_files": []}
+	new_files = {"gene_prediction_files": [], "HSS_file": [], "GSS_files": [], "PSS_files": [], "BCC_files": []}
 	aln_lib = {}
 	for (weights_filename_list, hypothesis_filename, groups_filename) in zip(file_dict["weights_files"], file_dict["hypothesis_files"], file_dict["group_indices_files"]):
 		missing_results = []
 		gene_prediction_files = []
+		cc_count_lib = {}
+		bcc_files = []
 		for weights_filename in weights_filename_list:
 			outname = weights_filename.replace("_hypothesis", "").replace("_out_feature_weights", "_gene_predictions").replace(".xml", ".txt")
 			if os.path.exists(weights_filename):
 				args.HSS[os.path.basename(hypothesis_filename)] = args.HSS.get(os.path.basename(hypothesis_filename), 0) + process_single_grid_weight(weights_filename, hypothesis_filename, groups_filename, outname, aln_lib, args)
 				gene_prediction_files += [outname]
+				bcc_files += [outname.replace("_gene_predictions", "_bit_counts")]
 			elif args.grid_gene_threshold > 0:
 				print("No results file detected, most likely due to grid_gene_threshold: {}".format(weights_filename))
 				missing_results.append(weights_filename)
@@ -521,11 +532,63 @@ def process_weights(args, file_dict):
 		new_files["gene_prediction_files"].append(gene_prediction_files)
 		new_files["GSS_files"].append([fname.replace("gene_predictions", "GSS") for fname in gene_prediction_files])
 		new_files["PSS_files"].append([fname.replace("gene_predictions", "PSS") for fname in gene_prediction_files])
+		if 'B' in args.stats_out:
+			for weights_filename in weights_filename_list:
+				extract_cc_counts(weights_filename, hypothesis_filename, aln_lib, cc_count_lib)
+			new_files["BCC_files"].append(bcc_files)
 	with open(os.path.join(args.output, "HSS.txt"), 'w') as file:
 		file.write("{}\t{}\n".format("Hypothesis", "HSS"))
 		for hypothesis_filename in [os.path.basename(filename) for filename in file_dict["hypothesis_files"]]:
 			file.write("{}\t{}\n".format(hypothesis_filename.replace("_hypothesis.txt", ""), args.HSS[os.path.basename(hypothesis_filename)]))
 	new_files["HSS_file"] += [os.path.join(args.output, "HSS.txt")]
+	return new_files
+
+
+def process_xval_weights(args, file_dict):
+	new_files = {"xval_gene_prediction_files": []}
+	aln_lib = {}
+	temp_files = []
+	for (weights_filename_list, hypothesis_filename, groups_filename, xval_id_filename, gene_prediction_filename_list) in zip(file_dict["xval_weights_files"], file_dict["hypothesis_files"], file_dict["group_indices_files"], file_dict["xval_id_files"], file_dict["gene_prediction_files"]):
+		gene_prediction_tables = []
+		for xval_id in range(0, args.xval):
+			weights_filename = weights_filename_list[xval_id]
+			xval_hypothesis_filename = hypothesis_filename.replace(".txt", "_xval_{}.txt".format(xval_id + 1))
+			with open(xval_hypothesis_filename, 'w') as xval_hypothesis_file:
+				temp_files += [xval_hypothesis_filename]
+				with open(hypothesis_filename, 'r') as hypothesis_file:
+					with open(xval_id_filename, 'r') as xval_file:
+						for xval_line in xval_file.readlines():
+							hypothesis_line = hypothesis_file.readline().strip()
+							if xval_line.strip() == str(xval_id + 1):
+								xval_hypothesis_file.write("{}\n".format(hypothesis_line))
+			outname = weights_filename.replace("_hypothesis", "").replace("_out_feature_weights", "_gene_predictions").replace(".xml", ".txt")
+			temp_files += [outname]
+			temp_files += [outname.replace('gene_predictions', 'PSS')]
+			process_single_grid_weight(weights_filename, xval_hypothesis_filename, groups_filename, outname, aln_lib, args)
+			gene_prediction_tables += [outname]
+		merged_gene_prediction_table = pandas.read_csv(gene_prediction_tables[0], sep='\t')
+		for xval_id in range(1, args.xval):
+			gene_prediction_table = pandas.read_csv(gene_prediction_tables[xval_id], sep='\t')
+			merged_gene_prediction_table = pandas.merge(merged_gene_prediction_table, gene_prediction_table, how='outer')
+		xval_gene_predictions_filename = xval_id_filename.replace('xval_groups', 'xval_gene_predictions')
+		merged_gene_prediction_table.to_csv(xval_gene_predictions_filename, sep='\t', index=False)
+		new_files["xval_gene_prediction_files"].append(xval_gene_predictions_filename)
+		print("Cross validation accuracy comparison:")
+		for gene_prediction_filename in gene_prediction_filename_list:
+			temp_df = pandas.read_csv(gene_prediction_filename, sep='\t')
+			TPR = ((temp_df['Response'] > 0) & (temp_df['Prediction'] > 0)).sum() / (temp_df['Response'] > 0).sum()
+			TNR = ((temp_df['Response'] < 0) & (temp_df['Prediction'] < 0)).sum() / (temp_df['Response'] < 0).sum()
+			ACC = (((temp_df['Response'] > 0) & (temp_df['Prediction'] > 0)).sum() + ((temp_df['Response'] < 0) & (temp_df['Prediction'] < 0)).sum()) / (
+						(temp_df['Response'] > 0).sum() + (temp_df['Response'] < 0).sum())
+			print(" {}:\n\tACC:{:.2f}\tTPR:{:.2f}\tTNR:{:.2f}\t".format(gene_prediction_filename, ACC, TPR, TNR))
+		temp_df = merged_gene_prediction_table
+		TPR = ((temp_df['Response'] > 0) & (temp_df['Prediction'] > 0)).sum() / (temp_df['Response'] > 0).sum()
+		TNR = ((temp_df['Response'] < 0) & (temp_df['Prediction'] < 0)).sum() / (temp_df['Response'] < 0).sum()
+		ACC = (((temp_df['Response'] > 0) & (temp_df['Prediction'] > 0)).sum() + ((temp_df['Response'] < 0) & (temp_df['Prediction'] < 0)).sum()) / (
+				(temp_df['Response'] > 0).sum() + (temp_df['Response'] < 0).sum())
+		print(" {}:\n\tACC:{:.2f}\tTPR:{:.2f}\tTNR:{:.2f}\t".format(xval_gene_predictions_filename, ACC, TPR, TNR))
+	for filename in temp_files:
+		os.remove(filename)
 	return new_files
 
 
@@ -716,6 +779,44 @@ def read_ESL_model(filename, numeric=False):
 			last_gene = gene
 			last_pos = pos
 	return model
+
+
+def extract_cc_counts(weights_filename, hypothesis_filename, aln_lib, cc_count_lib):
+	model = read_ESL_model(weights_filename, numeric=False)
+	existing_count_list = list(cc_count_lib.keys())
+	hypothesis = {}
+	with open(hypothesis_filename, 'r') as hypothesis_file:
+		for line in hypothesis_file.readlines():
+			data = line.strip().split('\t')
+			hypothesis[data[0]] = int(data[1])
+	all_case_seqids = [seq_id for seq_id in hypothesis.keys() if hypothesis[seq_id] == 1]
+	all_control_seqids = [seq_id for seq_id in hypothesis.keys() if hypothesis[seq_id] == -1]
+	cc_counts_filename = weights_filename.replace("_hypothesis", "").replace("_out_feature_weights", "_bit_counts").replace(".xml", ".txt")
+	with open(cc_counts_filename, 'w') as cc_counts_file:
+		cc_counts_file.write("feature\tweight\t+1_present\t+1_absent\t-1_present\t-1_absent\n")
+		for gene in model.keys():
+			if gene == "Intercept":
+				continue
+			case_seqids = [seqid for seqid in aln_lib[gene].keys() if seqid in all_case_seqids]
+			control_seqids = [seqid for seqid in aln_lib[gene].keys() if seqid in all_control_seqids]
+			for pos in model[gene].keys():
+				for allele in model[gene][pos].keys():
+					ft_name = "{}_{}_{}".format(gene, pos, allele)
+					if ft_name not in existing_count_list:
+						case_presence_count = sum([1 for seq_id in case_seqids if aln_lib[gene][seq_id][pos] == allele])
+#						print(case_seqids[0:5])
+#						print(list(aln_lib[gene].keys())[0:5])
+#						print(allele)
+#						print([aln_lib[gene][seq_id][pos] for seq_id in list(aln_lib[gene].keys())[0:5]])
+						case_absence_count = len(case_seqids) - case_presence_count
+						control_presence_count = sum([1 for seq_id in control_seqids if aln_lib[gene][seq_id][pos] == allele])
+						control_absence_count = len(control_seqids) - control_presence_count
+						cc_count_lib[ft_name] = {"case_presence_count": case_presence_count, "case_absence_count": case_absence_count,
+												 "control_presence_count": control_presence_count, "control_absence_count": control_absence_count}
+					cc_counts_file.write("{}\t{}\t{}\t{}\t{}\t{}\n".format(ft_name, model[gene][pos][allele], cc_count_lib[ft_name]["case_presence_count"],
+																		   cc_count_lib[ft_name]["case_absence_count"],
+																		   cc_count_lib[ft_name]["control_presence_count"],
+																		   cc_count_lib[ft_name]["control_absence_count"]))
 
 
 def extract_gene_sums(aln_list, aln_lib, model, numeric=False):
@@ -1196,6 +1297,9 @@ def grid_search(args):
 		args.timers["analysis"]["start"] = datetime.now()
 		new_files = process_weights(args, file_dict)
 		file_dict.update(new_files)
+		if args.xval > 1:
+			new_files = process_xval_weights(args, file_dict)
+			file_dict.update(new_files)
 		if not args.grid_summary_only:
 			new_files = generate_model_graphics(args, file_dict)
 			file_dict.update(new_files)
@@ -1234,11 +1338,6 @@ def lambda_val2label(lambda_val):
 		return lambda_string[2:]
 	else:
 		return lambda_string
-	# lambda_val = float(lambda_val)
-	# if "{:g}".format(lambda_val)[0:2] == "0.":
-	# 	return "{:g}".format(lambda_val)[2:]
-	# else:
-	# 	return "{:g}".format(lambda_val)
 
 
 def lookup_by_names(tree):

@@ -87,6 +87,10 @@ int main(int argc, char *argv[])
 			{
 				data->setIndelFuzzing(true);
 			}
+			if (strcmp(argv[i], "flatWeights") == 0)
+			{
+				data->setFlatWeights(true);
+			}
 			if (strcmp(argv[i], "useCaching") == 0)
 			{
 				data->setDiskCaching(true);

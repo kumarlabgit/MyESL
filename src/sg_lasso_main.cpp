@@ -164,7 +164,7 @@ int main(int argc, char *argv[]) {
     for(const auto& item : xval_idxs) {
       xval_ids.insert(item);  // Insert the value into the set (automatically handles uniqueness)
     }
-    xval_idxs.print("");
+//    xval_idxs.print("");
 
 
     for(const auto& xval_id : xval_ids) {
@@ -192,9 +192,7 @@ int main(int argc, char *argv[]) {
 
   if (program.get<std::string>("lambda_list") != "-") {
     std::vector<std::tuple<double, double>> lambda_list = readLambdaList(program.get<std::string>("lambda_list"));
-
     std::vector<std::tuple<std::string, std::string>> lambda_list_str = readLambdaListAsStrings(program.get<std::string>("lambda_list"));
-
     double max_glambda2 = 1.0;
     double min_glambda2 = 1.0;
 
@@ -339,13 +337,7 @@ std::vector<std::tuple<std::string, std::string>> readLambdaListAsStrings(string
     }
   }
 
-
   file.close();
-
-//    for (const auto& [str1, str2] : data) {
-//        std::cout << "First: " << str1 << " | Second: " << str2 << std::endl;
-//    }
-
 
   return data;
 }
@@ -382,19 +374,10 @@ std::string lambdaLabel(const double arr[], int idx) {
 
 
     // Convert the double to a string
-    // std::setprecision(17);
     std::ostringstream streamObj;
-
-    //streamObj << std::setprecision(17) << std::noshowpoint << arr[idx];
     streamObj << std::noshowpoint << std::fixed << std::setprecision(14) << arr[idx];
-
-    //std::string doubleStr = std::to_string(arr[idx]);
     std::string doubleStr = streamObj.str();
-    std::cout << "Converting lambda string..." << std::endl;
-
-
     std::cout << doubleStr << std::endl;
-
     // Find "0." at the beginning of the string and erase it if present
     if(doubleStr.substr(0, 2) == "0.") {
         doubleStr.erase(0, 2);
