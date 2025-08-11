@@ -25,8 +25,8 @@ if __name__ == '__main__':
 	parser.add_argument("--class_bal", help="Sample balancing type:['weighted', 'up', 'down', 'phylo'(, 'phylo_1', 'phylo_2')]", type=str, default=None)
 	parser.add_argument("--preserve_inputs", help="Leave input files in place for inspection.", action='store_true', default=False)
 	parser.add_argument("--disable_mc", help="Disable available memory check.", action='store_true', default=False)
-	parser.add_argument("-z", "--lambda1", help="Feature sparsity parameter.", type=float, default=0.1)
-	parser.add_argument("-y", "--lambda2", help="Group sparsity parameter.", type=float, default=0.1)
+	parser.add_argument("--lambda1", help="Feature sparsity parameter.", type=float, default=0.1)
+	parser.add_argument("--lambda2", help="Group sparsity parameter.", type=float, default=0.1)
 	parser.add_argument("--lambda1_grid", help="Grid search sparsity parameter interval specified as 'min,max,step_size'", type=str, default=None)
 	parser.add_argument("--lambda2_grid", help="Grid search group sparsity parameter interval specified as 'min,max,step_size'", type=str, default=None)
 	parser.add_argument("--grid_rmse_cutoff", help="RMSE cutoff when selecting models to aggregate.", type=float, default=100.0)
@@ -265,3 +265,4 @@ if __name__ == '__main__':
 			# 		pass
 	for key in args.timers.keys():
 		print("Total time elapsed for {}: {}.".format(key, args.timers[key]["total"]))
+
