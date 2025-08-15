@@ -374,7 +374,7 @@ def generate_input_matrices(args, file_dict):
 			subprocess.call(preprocess_cmd.split("*"), stderr=subprocess.STDOUT, cwd=preprocess_cwd)
 			if not args.disable_mc:
 				partitions_max = max(partitions_max, check_memory("feature_{}.txt".format(hypothesis_basename), args.output))
-			if args.data_type != "numeric" and partitions_max <= 1.0:
+			if args.data_type != "numeric" and partitions_max <= 2.0:
 				print("Calculating position statistics...")
 				position_stats = {}
 				#stat_keys = ["mic", "entropy"]
@@ -624,11 +624,10 @@ def read_ESL_model(filename, numeric=False):
 				gene = "_".join(feature[0:-1])
 				pos = int(feature[-1])
 				weight = float(data[1])
-				if gene != last_gene:
+				if gene not in model:
 					model[gene] = {pos: weight}
 				else:
 					model[gene].update({pos: weight})
-				last_gene = gene
 		return model
 	with open(filename, 'r') as file:
 		for line in file:
@@ -641,14 +640,12 @@ def read_ESL_model(filename, numeric=False):
 			pos = int(feature[-2])
 			allele = feature[-1]
 			weight = float(data[1])
-			if gene != last_gene:
+			if gene not in model:
 				model[gene] = {pos: {allele: weight}}
-			elif pos != last_pos:
+			elif pos not in model[gene]:
 				model[gene].update({pos: {allele: weight}})
 			else:
 				model[gene][pos].update({allele: weight})
-			last_gene = gene
-			last_pos = pos
 	return model
 
 

@@ -12,8 +12,6 @@ import gene_contribution_visualizer as gcv
 # Reads model file into a dictionary
 def read_model(filename):
 	model = {}
-	last_gene = ""
-	last_pos = -1
 	with open(filename, 'r') as file:
 		for line in file:
 			data = line.strip().split("\t")
@@ -25,14 +23,12 @@ def read_model(filename):
 			pos = int(feature[-2])
 			allele = feature[-1]
 			weight = float(data[1])
-			if gene != last_gene:
+			if gene not in model:
 				model[gene] = {pos: {allele: weight}}
-			elif pos != last_pos:
+			elif pos not in model[gene]:
 				model[gene].update({pos: {allele: weight}})
 			else:
 				model[gene][pos].update({allele: weight})
-			last_gene = gene
-			last_pos = pos
 	return model
 
 
@@ -162,7 +158,6 @@ def main(args):
 			for group in group_list:
 				prediction += weighted_group_sums[group].get(seq_id, 0)
 			file.write("{}\t{}\t{}\t{}\t{}\n".format(seq_id, response[seq_id], prediction, model["Intercept"], "\t".join([str(weighted_group_sums[group].get(seq_id, numpy.nan)) for group in group_list])))
-
 	gcv_files = gcv.main(args.output, gene_limit=args.gene_display_limit, ssq_threshold=args.gene_display_cutoff, m_grid=args.m_grid)
 
 

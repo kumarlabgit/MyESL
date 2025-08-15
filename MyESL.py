@@ -103,8 +103,8 @@ if __name__ == '__main__':
 			args.m_grid = "20,30"
 		if args.min_groups < 0:
 			args.min_groups = 3
-	if (args.lambda1_grid is not None or args.lambda2_grid is not None) and args.kfold > 1:
-		raise Exception("Cannot use --kfold option while running in grid search mode.")
+#	if (args.lambda1_grid is not None or args.lambda2_grid is not None) and args.kfold > 1:
+#		raise Exception("Cannot use --kfold option while running in grid search mode.")
 	args.single_lambda_pair = False
 	#Convert single run to 1x1 grid run
 	if args.lambda1_grid is None and args.lambda2_grid is None:
