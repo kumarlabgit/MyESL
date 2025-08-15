@@ -753,11 +753,10 @@ def read_ESL_model(filename, numeric=False):
 				gene = "_".join(feature[0:-1])
 				pos = int(feature[-1])
 				weight = float(data[1])
-				if gene != last_gene:
+				if gene not in model:
 					model[gene] = {pos: weight}
 				else:
 					model[gene].update({pos: weight})
-				last_gene = gene
 		return model
 	with open(filename, 'r') as file:
 		for line in file:
@@ -770,14 +769,12 @@ def read_ESL_model(filename, numeric=False):
 			pos = int(feature[-2])
 			allele = feature[-1]
 			weight = float(data[1])
-			if gene != last_gene:
+			if gene not in model:
 				model[gene] = {pos: {allele: weight}}
-			elif pos != last_pos:
+			elif pos not in model[gene]:
 				model[gene].update({pos: {allele: weight}})
 			else:
 				model[gene][pos].update({allele: weight})
-			last_gene = gene
-			last_pos = pos
 	return model
 
 
@@ -1179,6 +1176,7 @@ def summarize_models(args, file_dict):
 
 def aim_search(args):
 	selected_features = []
+	selected_ft_idxs = []
 	aim_files = []
 	iter_ct = 0
 	gs_files = generate_hypothesis_set(args)
@@ -1190,6 +1188,7 @@ def aim_search(args):
 	pos_stats_filename = None
 	while iter_ct < args.aim_max_iter:
 		aim_args = copy.deepcopy(args)
+		aim_args.xval = 1
 		iter_ct += 1
 		if iter_ct == 2:
 			with open(aim_files[0]["feature_mapping_files"][0], 'r') as file:
@@ -1255,23 +1254,46 @@ def aim_search(args):
 		# 		print(key)
 		# 		print(aim_iter_files[key])
 	# dump selected_features to a text file.
+	pos_stats = {}
+	with open(pos_stats_filename, 'r') as pos_stats_file:
+		for line in pos_stats_file:
+			data = line.strip().split("\t")
+			pos_stats[data[0].strip()] = data[1].strip()
+	aim_dropped_final = []
+	for part_idx in range(1, iter_ct + 1):
+		part_dir = os.path.join(args.output, "{}_part{}".format(os.path.basename(args.output), part_idx))
+		shutil.move(os.path.join(part_dir, "aim_out.png"), os.path.join(args.output, "aim_out_{}.png".format(part_idx)))
+		if not os.path.exists(os.path.join(part_dir, "aim_dropped.txt")):
+			print("Terminating at iteration {} after dropping {} most informative features, because balanced accuracy of {} could no longer be"
+				  " achieved using top {} selected features.".format(part_idx, len(selected_features), args.aim_acc_cutoff, args.aim_window))
+			break
+		with open(os.path.join(part_dir, "aim_dropped.txt"), 'r') as infile:
+			for line in infile:
+				aim_dropped_final += ["{}\t{}\n".format(line.strip(), pos_stats["_".join(line.strip().split("_")[:-1])])]
+				selected_ft_idxs += [int(feature_map[line.strip()]) - 1]
+	# Generate final model
+	with open(os.path.join(args.output, "aim_unselected_idx.txt"), 'w') as outfile:
+		for idx in range(0, len(feature_map)):
+			if idx in selected_ft_idxs:
+				pass
+			else:
+				outfile.write("{}\n".format(idx))
+
+		aim_args = copy.deepcopy(args)
+		iter_ct += 1
+		aim_args.preserve_inputs = True
+		aim_args.skip_preprocessing = True
+		aim_args.timers = args.timers
+		aim_args.grid_summary_only = False
+		aim_args.dropout = os.path.join(args.output, "aim_unselected_idx.txt")
+		aim_args.aim_final = True
+
+		aim_iter_files = grid_search(aim_args)
+		aim_files.append(aim_iter_files)
 	with open(os.path.join(args.output, "aim_dropped.txt"), 'w') as outfile:
-		pos_stats = {}
-		with open(pos_stats_filename, 'r') as pos_stats_file:
-			for line in pos_stats_file:
-				data = line.strip().split("\t")
-				pos_stats[data[0].strip()] = data[1].strip()
 		outfile.write("{}\t{}\n".format("Position Name", pos_stats["Position Name"]))
-		for part_idx in range(1, iter_ct + 1):
-			part_dir = os.path.join(args.output, "{}_part{}".format(os.path.basename(args.output), part_idx))
-			shutil.move(os.path.join(part_dir, "aim_out.png"), os.path.join(args.output, "aim_out_{}.png".format(part_idx)))
-			if not os.path.exists(os.path.join(part_dir, "aim_dropped.txt")):
-				print("Terminating at iteration {} after dropping {} most informative features, because balanced accuracy of {} could no longer be"
-					  " achieved using top {} selected features.".format(part_idx, len(selected_features), args.aim_acc_cutoff, args.aim_window))
-				break
-			with open(os.path.join(part_dir, "aim_dropped.txt"), 'r') as infile:
-				for line in infile:
-					outfile.write("{}\t{}\n".format(line.strip(), pos_stats["_".join(line.strip().split("_")[:-1])]))
+		for line in aim_dropped_final:
+			outfile.write("{}\n".format(line.strip()))
 	return aim_files
 
 

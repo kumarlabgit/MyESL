@@ -101,17 +101,17 @@ def aim_graphic(scores, feature_weights, response_dict, args):
 		if len(neg_feature_weights) > 0 and (tp_count/pos_count >= tn_count/neg_count or len(pos_feature_weights) == 0):
 			resorted_feature_weights.append(neg_feature_weights[0])
 			for seqid in seqid_list:
-				pred_dict[seqid][1] += scores[neg_feature_weights[0][0]][seqid]
+				pred_dict[seqid][1] += scores[neg_feature_weights[0][0]].get(seqid, 0)
 			del neg_feature_weights[0]
 		else:
 			resorted_feature_weights.append(pos_feature_weights[0])
 			for seqid in seqid_list:
-				pred_dict[seqid][1] += scores[pos_feature_weights[0][0]][seqid]
+				pred_dict[seqid][1] += scores[pos_feature_weights[0][0]].get(seqid, 0)
 			del pos_feature_weights[0]
 	feature_weights = resorted_feature_weights
 
 
-	score_lists = {seqid: [scores["Intercept"]]+[scores[ft_name][seqid] for ft_name, weight in feature_weights] for seqid in seqid_list}
+	score_lists = {seqid: [scores["Intercept"]]+[scores[ft_name].get(seqid, 0) for ft_name, weight in feature_weights] for seqid in seqid_list}
 	data = np.asarray([[response_dict[seqid], sum(score_lists[seqid])]+score_lists[seqid] for seqid in seqid_list], dtype="float")
 	header = ["Response","Prediction","Intercept"] + [ft_name for ft_name, weight in feature_weights]
 	lead_cols = 4
@@ -223,7 +223,7 @@ def aim_graphic(scores, feature_weights, response_dict, args):
 	ax2.plot(x, acc, marker='o', label='Acc', ms=1)
 	ax2.plot(x, tpr, marker='s', label='TPR', ms=1)
 	ax2.plot(x, tnr, marker='^', label='FPR', ms=1)
-	if cutoff_idx > 0:
+	if cutoff_idx > 0 and not args.aim_final:
 		ax2.axvline(x=cutoff_idx + 1.5, color='b')
 		ax.axvline(x=(cutoff_idx + 3) * 20, color='b')
 

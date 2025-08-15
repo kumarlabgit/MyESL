@@ -25,8 +25,8 @@ if __name__ == '__main__':
 	parser.add_argument("--class_bal", help="Sample balancing type:['weighted', 'up', 'down', 'phylo'(, 'phylo_1', 'phylo_2')]", type=str, default=None)
 	parser.add_argument("--preserve_inputs", help="Leave input files in place for inspection.", action='store_true', default=False)
 	parser.add_argument("--disable_mc", help="Disable available memory check.", action='store_true', default=False)
-	parser.add_argument("-z", "--lambda1", help="Feature sparsity parameter.", type=float, default=None)
-	parser.add_argument("-y", "--lambda2", help="Group sparsity parameter.", type=float, default=None)
+	parser.add_argument("--lambda1", help="Feature sparsity parameter.", type=float, default=None)
+	parser.add_argument("--lambda2", help="Group sparsity parameter.", type=float, default=None)
 	parser.add_argument("--lambda1_grid", help="Grid search sparsity parameter interval specified as 'min,max,step_size'", type=str, default=None)
 	parser.add_argument("--lambda2_grid", help="Grid search group sparsity parameter interval specified as 'min,max,step_size'", type=str, default=None)
 	parser.add_argument("--grid_rmse_cutoff", help="RMSE cutoff when selecting models to aggregate.", type=float, default=100.0)
@@ -75,6 +75,7 @@ if __name__ == '__main__':
 	args.grid_threads = None
 	## End cruft ##
 	args.debug = True
+	args.aim_final = False
 
 	if args.threads is None:
 		args.threads = os.cpu_count()
@@ -135,8 +136,8 @@ if __name__ == '__main__':
 			args.m_grid = "20,30"
 		if args.min_groups < 0:
 			args.min_groups = 3
-	if (args.lambda1_grid is not None or args.lambda2_grid is not None) and args.kfold > 1:
-		raise Exception("Cannot use --kfold option while running in grid search mode.")
+#	if (args.lambda1_grid is not None or args.lambda2_grid is not None) and args.kfold > 1:
+#		raise Exception("Cannot use --kfold option while running in grid search mode.")
 	args.single_lambda_pair = False
 	if args.AIM:
 		if args.lambda1_grid is None:
@@ -203,7 +204,10 @@ if __name__ == '__main__':
 		if not os.path.exists(args.output):
 			os.mkdir(args.output)
 		args.aln_list = pf.aln_list_to_absolute(args.aln_list, args.output)
-		gs_files = pf.grid_search(args)
+		if args.AIM:
+			as_files = pf.aim_search(args)
+		else:
+			gs_files = pf.grid_search(args)
 	elif (args.grid_z is None and args.grid_y is not None) or (args.grid_y is None and args.grid_z is not None):
 		raise Exception("Only one grid search parameter specified, --lambda1_grid and --lambda2_grid must be specified together.")
 	elif args.grid_z is not None and args.grid_y is not None and args.xval <= 1:
