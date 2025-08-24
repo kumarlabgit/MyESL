@@ -1,0 +1,9 @@
+Starmerella_bombicola	
+Candida_apicola	
+Hanseniaspora_vineae	
+Hanseniaspora_valbyensis	
+Hanseniaspora_uvarum	
+Lachancea_kluyveri	
+Lachancea_lanzarotensis	
+Lachancea_thermotolerans	
+Lachancea_waltii
