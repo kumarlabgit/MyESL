@@ -1,1 +1,1 @@
-The alignment folder 'aln', which contains all gene sequence alignments, can be found in the 'Fungi_data' directory. Copy this folder into both 'Input1' and 'Input2' to reproduce the results presented in 'Figures 2a' and '2b' of the MyESL article.
+The alignment folder `aln`, which contains all gene sequence alignments, can be found in the `Fungi_data` directory. Copy this folder into both `Input1` and `Input2` to reproduce the results presented in `Figures 2a` and `2b` of the MyESL article.
