@@ -347,6 +347,8 @@ def generate_input_matrices(args, file_dict):
 		options = "{} {}".format(options.strip(), "db")
 	if args.fuzz_indels:
 		options = "{} {}".format(options.strip(), "fuzzIndels")
+	if args.drop_major_allele:
+		options = "{} {}".format(options.strip(), "dropMajor")
 	if args.method == "gl_logistic":
 		options = "{} {}".format(options.strip(), "flatWeights")
 #	if args.bit_ct > 1:

@@ -47,6 +47,7 @@ if __name__ == '__main__':
 	parser.add_argument("--bit_ct", help="Ignore mutations observed fewer than N times.", type=int, default=1)
 	parser.add_argument("--auto_bit_ct", help="Automatically set bit_ct to X% of response class with fewer members.", type=float, default=None)
 	parser.add_argument("--include_singletons", help="Include singleton sites in analysis.", action='store_true', default=False)
+	parser.add_argument("--drop_major_allele", help="Ignore major allele when generating one-hot encoded matrix.", action='store_true', default=False)
 	parser.add_argument("--stats_out", help="<str[PGHS]*> Various single-character flags for output produced, consult README for more info.", type=str, default="")
 	parser.add_argument("--data_type", help="<Options are \"nucleotide\", \"protein\", \"molecular\", \"universal\". Consult documentation for detailed info.", type=str, default="universal")
 	parser.add_argument("--DrPhylo", help="Run Dr Phylo type analysis.", action='store_true', default=False)

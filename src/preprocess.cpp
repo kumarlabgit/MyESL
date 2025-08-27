@@ -87,6 +87,11 @@ void alnData::setIndelFuzzing(bool indelFuzzing)
 	this->indelFuzzing = indelFuzzing;
 }
 
+void alnData::setDropMajor(bool dropMajor)
+{
+	this->dropMajor = dropMajor;
+}
+
 void alnData::setFlatWeights(bool flatWeights)
 {
 	this->flatWeights = flatWeights;
@@ -464,12 +469,24 @@ void alnData::processTable()
 			feature.push_back(this->numericSeqs[this->species[k]][i]);
 		}
 		this->featureMap[this->featureIndex] = featureName;
-		this->features[featureIndex] = feature;
+		if (this->useDiskCache)
+		{
+			this->features[this->cacheFeatureIndex] = feature;
+		}
+		else
+		{
+			this->features[featureIndex] = feature;
+		}
 		this->featureIndex++;
+		this->cacheFeatureIndex++;
 		values.clear();
 		feature.clear();
 	}
 	this->groupIndices.push_back({groupStartIndex,this->featureIndex-1});
+	if (this->useDiskCache && this->cacheFeatureIndex * this->featureSize * this->species.size() >= this->workingMemLimit)
+	{
+		this->dumpFeatureCache();
+	}
 }
 
 void alnData::processAln()
@@ -492,33 +509,34 @@ void alnData::processAln()
 		//process it into features if it isn't
 		if (bases.size() > 2)
 		{
-			if (this->ignoreSingletons)
+			char majorBase;
+			for (auto elem : bases)
 			{
-				for (auto elem : bases)
-				{
-					baseCounts[elem] = 0;
-				}
-				for (int j = 0; j < numSpecies; j++)
-				{
-					baseCounts[this->seqs[this->species[j]][i]]++;
-				}
-				//Sum non-indel baseCounts, then subtract major count, and check if remainder is greater than count threshold
-				int baseCountTotal = 0, maxCount = 0;
-				for (auto elem : bases)
-				{
-					if (elem == '-')
-						continue;
-					if (baseCounts[elem] > maxCount)
-						maxCount = baseCounts[elem];
-					baseCountTotal += baseCounts[elem];
-				}
-				if (baseCountTotal - maxCount < this->countThreshold)
-					continue;
+				baseCounts[elem] = 0;
 			}
+			for (int j = 0; j < numSpecies; j++)
+			{
+				baseCounts[this->seqs[this->species[j]][i]]++;
+			}
+			//Sum non-indel baseCounts, then subtract major count, and check if remainder is greater than count threshold
+			int baseCountTotal = 0, maxCount = 0;
+			for (auto elem : bases)
+			{
+				if (elem == '-')
+					continue;
+				if (baseCounts[elem] > maxCount)
+				{
+					maxCount = baseCounts[elem];
+					majorBase = elem;
+				}
+				baseCountTotal += baseCounts[elem];
+			}
+			if (this->ignoreSingletons && baseCountTotal - maxCount < this->countThreshold)
+				continue;
 			set<char>::iterator baseIter = bases.begin();
 			for (int j = 0; j < bases.size(); j++)
 			{
-				if (*baseIter != '-')
+				if (*baseIter != '-' && (!this->dropMajor || *baseIter != majorBase))
 				{
 					vector<float> oneHot;
 					int featureSum = 0;

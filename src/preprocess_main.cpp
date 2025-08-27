@@ -91,6 +91,10 @@ int main(int argc, char *argv[])
 			{
 				data->setFlatWeights(true);
 			}
+			if (strcmp(argv[i], "dropMajor") == 0)
+			{
+				data->setDropMajor(true);
+			}
 			if (strcmp(argv[i], "useCaching") == 0)
 			{
 				data->setDiskCaching(true);

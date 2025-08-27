@@ -1,0 +1,10 @@
+aln\BUSCOfEOG7008JB_numeric.txt
+aln\BUSCOfEOG7008JM_numeric.txt
+aln\BUSCOfEOG7008JT_numeric.txt
+aln\BUSCOfEOG7008K9_numeric.txt
+aln\BUSCOfEOG7034RG_numeric.txt
+aln\BUSCOfEOG7034SB_numeric.txt
+aln\BUSCOfEOG7034SQ_numeric.txt
+aln\BUSCOfEOG7034T8_numeric.txt
+aln\BUSCOfEOG7034T9_numeric.txt
+aln\BUSCOfEOG7034TC_numeric.txt
