@@ -92,6 +92,11 @@ void alnData::setDropMajor(bool dropMajor)
 	this->dropMajor = dropMajor;
 }
 
+void alnData::setMinorColumn(bool minorColumn)
+{
+	this->minorColumn = minorColumn;
+}
+
 void alnData::setFlatWeights(bool flatWeights)
 {
 	this->flatWeights = flatWeights;
@@ -494,6 +499,12 @@ void alnData::processAln()
 	int seqLen = this->seqs[this->species[1]].size();
 	int numSpecies = this->species.size();
 	int groupStartIndex = this->featureIndex;
+	map<string, float> minorColumnOneHot;
+	for (int k = 0; k < numSpecies; k++)
+	{
+		minorColumnOneHot[this->species[k]] = 0;
+	}
+
 //	int cacheFeatureIndex = 1;
 
 	for (int i = 0; i < seqLen; i++)
@@ -558,6 +569,17 @@ void alnData::processAln()
 						baseIter++;
 						continue;
 					}
+					if(this->minorColumn && *baseIter != majorBase)
+					{
+						this->minorAlleles.push_back(featureName);
+						for (int k = 0; k < numSpecies; k++)
+						{
+							if (this->seqs[this->species[k]][i] == *baseIter)
+							{
+								minorColumnOneHot[this->species[k]] = 1;
+							}
+						}
+					}
 					this->featureMap[this->featureIndex] = featureName;
 					//If disk cache is being used, overwrite features starting from 1 for each gene
 					if (this->useDiskCache)
@@ -574,6 +596,25 @@ void alnData::processAln()
 				baseIter++;
 			}
 		}
+	}
+	if (this->minorColumn)
+	{
+		vector<float> oneHot;
+		for (int k = 0; k < numSpecies; k++)
+		{
+			oneHot.push_back(minorColumnOneHot[this->species[k]]);
+		}
+		this->featureMap[this->featureIndex] = this->currentGene + "_minor";
+		if (this->useDiskCache)
+		{
+			this->features[this->cacheFeatureIndex] = oneHot;
+		}
+		else
+		{
+			this->features[featureIndex] = oneHot;
+		}
+		this->featureIndex++;
+		this->cacheFeatureIndex++;
 	}
 	this->groupIndices.push_back({groupStartIndex,this->featureIndex-1});
 	if (this->useDiskCache && this->cacheFeatureIndex * this->featureSize * this->species.size() >= this->workingMemLimit)
@@ -972,6 +1013,19 @@ void alnData::generateMappingFile(string baseName)
 			mappingFile << i << "\t" << this->featureMap[i] << endl;
 		}
 		mappingFile.close();
+	}
+	if (this->minorColumn)
+	{
+		string minorAlleleFileName = baseName + "/minor_alleles.txt";
+		ofstream minorAlleleFile (minorAlleleFileName);
+		if (minorAlleleFile.is_open())
+		{
+			for (int i = 0; i < this->minorAlleles.size(); i++)
+			{
+				minorAlleleFile << this->minorAlleles[i] << endl;
+			}
+			minorAlleleFile.close();
+		}
 	}
 }
 

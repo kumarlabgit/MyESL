@@ -95,6 +95,10 @@ int main(int argc, char *argv[])
 			{
 				data->setDropMajor(true);
 			}
+			if (strcmp(argv[i], "minorColumn") == 0)
+			{
+				data->setMinorColumn(true);
+			}
 			if (strcmp(argv[i], "useCaching") == 0)
 			{
 				data->setDiskCaching(true);

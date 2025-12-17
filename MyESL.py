@@ -62,6 +62,7 @@ if __name__ == '__main__':
 	parser.add_argument("--aim_window", help="Window of top features to select from at each AIM iteration.", type=int, default=100)
 	parser.add_argument("--aim_acc_cutoff", help="Minimum balanced accuracy a set of features must achieve to be selected.", type=float, default=0.9)
 	parser.add_argument("--AIM", help="Run ancestry informative markers analysis.", action='store_true', default=False)
+	parser.add_argument("--minor_column", help="Include feature column indicating presence of any non-filtered minor allele.", action='store_true', default=False)
 
 	args = parser.parse_args()
 

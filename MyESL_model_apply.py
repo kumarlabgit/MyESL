@@ -19,9 +19,14 @@ def read_model(filename):
 				model["Intercept"] = float(data[1])
 				continue
 			feature = data[0].split("_")
-			gene = "_".join(feature[0:-2])
-			pos = int(feature[-2])
-			allele = feature[-1]
+			if feature[1] == "minor":
+				gene = "_".join(feature[0:-1])
+				pos = "minor"
+				allele = "*"
+			else:
+				gene = "_".join(feature[0:-2])
+				pos = int(feature[-2])
+				allele = feature[-1]
 			weight = float(data[1])
 			if gene not in model:
 				model[gene] = {pos: {allele: weight}}
@@ -32,8 +37,25 @@ def read_model(filename):
 	return model
 
 
+def read_minor_alleles(filename):
+	minor_alleles = {}
+	with open(filename, 'r') as file:
+		for line in file:
+			feature = line.strip().split("_")
+			gene = "_".join(feature[0:-2])
+			pos = int(feature[-2])
+			allele = feature[-1]
+			if gene not in minor_alleles:
+				minor_alleles[gene] = {pos: [allele]}
+			elif pos not in minor_alleles[gene]:
+				minor_alleles[gene].update({pos:[allele]})
+			else:
+				minor_alleles[gene][pos].append(allele)
+	return minor_alleles
+
+
 # Extracts weights from a list of alignment files based on model dictionary and generate sums per species/gene
-def extract_gene_sums(aln_list, model):
+def extract_gene_sums(aln_list, model, minor_alleles=None):
 	gene_files = {}
 	gene_sums = {}
 	aln_list_dir = os.path.dirname(aln_list)
@@ -55,7 +77,11 @@ def extract_gene_sums(aln_list, model):
 		for seq_id in alignment.keys():
 			gene_sums[gene][seq_id] = 0
 			for pos in model[gene].keys():
+				if pos == 'minor':
+					continue
 				gene_sums[gene][seq_id] += model[gene][pos].get(alignment[seq_id][pos], 0)
+			if minor_alleles is not None and sum([1 for pos in range(len(alignment[seq_id])) if alignment[seq_id][pos] in minor_alleles[gene].get(pos, [])]) > 0:
+				gene_sums[gene][seq_id] = gene_sums[gene][seq_id] + model[gene].get("minor", {"*": 0}).get("*", 0)
 	return gene_sums
 
 
@@ -125,8 +151,14 @@ def main(args):
 	model_basename = "_".join(os.path.splitext(os.path.basename(args.model))[0].replace("MyESL_model_", "").split("_")[:-2])
 	if args.output is None:
 		args.output = "{}_applied_gene_prediction.txt".format(model_basename)
+	minor_alleles_file = os.path.join(model_dir, "minor_alleles_{}.txt".format(model_dir.split(os.sep)[-1]))
+	if os.path.exists(minor_alleles_file):
+		print("Parsing minor alleles file...")
+		minor_alleles = read_minor_alleles(minor_alleles_file)
+	else:
+		minor_alleles = None
 	model = read_model(args.model)
-	gene_sums = extract_gene_sums(args.aln_list, model)
+	gene_sums = extract_gene_sums(args.aln_list, model, minor_alleles=minor_alleles)
 
 	species_list = set()
 

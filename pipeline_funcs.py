@@ -349,6 +349,8 @@ def generate_input_matrices(args, file_dict):
 		options = "{} {}".format(options.strip(), "fuzzIndels")
 	if args.drop_major_allele:
 		options = "{} {}".format(options.strip(), "dropMajor")
+	if args.minor_column:
+		options = "{} {}".format(options.strip(), "minorColumn")
 	if args.method == "gl_logistic":
 		options = "{} {}".format(options.strip(), "flatWeights")
 #	if args.bit_ct > 1:
@@ -703,14 +705,35 @@ def process_single_grid_weight(weights_filename, hypothesis_filename, groups_fil
 	numeric = False
 	if args.data_type == "numeric":
 		numeric = True
-	apply_ESL_model(args.aln_list, aln_lib, weights_filename, hypothesis_filename, groups_filename, outname, args.missing_seqs, numeric=numeric)
+	if args.minor_column:
+		minor_alleles = read_minor_alleles(os.path.join(args.output, "minor_alleles_{}.txt".format(args.output)))
+	else:
+		minor_alleles = None
+	apply_ESL_model(args.aln_list, aln_lib, weights_filename, hypothesis_filename, groups_filename, outname, args.missing_seqs, minor_alleles, numeric=numeric)
 	total_significance = generate_significance_scores(weights_filename, groups_filename, numeric=numeric)
 	return total_significance
 
 
-def apply_ESL_model(aln_list, aln_lib, model_file, hypothesis_file, groups_filename, output_filename, missing_seqs, numeric=False):
+def read_minor_alleles(filename):
+	minor_alleles = {}
+	with open(filename, 'r') as file:
+		for line in file:
+			feature = line.strip().split("_")
+			gene = "_".join(feature[0:-2])
+			pos = int(feature[-2])
+			allele = feature[-1]
+			if gene not in minor_alleles:
+				minor_alleles[gene] = {pos: [allele]}
+			elif pos not in minor_alleles[gene]:
+				minor_alleles[gene].update({pos:[allele]})
+			else:
+				minor_alleles[gene][pos].append(allele)
+	return minor_alleles
+
+
+def apply_ESL_model(aln_list, aln_lib, model_file, hypothesis_file, groups_filename, output_filename, missing_seqs, minor_alleles, numeric=False):
 	model = read_ESL_model(model_file, numeric=numeric)
-	gene_sums, gene_significance_scores = extract_gene_sums(aln_list, aln_lib, model, numeric=numeric)
+	gene_sums, gene_significance_scores = extract_gene_sums(aln_list, aln_lib, model, numeric=numeric, minor_alleles=minor_alleles)
 	species_list = set()
 	for gene in gene_sums.keys():
 		species_list.update(list(gene_sums[gene].keys()))
@@ -767,9 +790,14 @@ def read_ESL_model(filename, numeric=False):
 				model["Intercept"] = float(data[1])
 				continue
 			feature = data[0].split("_")
-			gene = "_".join(feature[0:-2])
-			pos = int(feature[-2])
-			allele = feature[-1]
+			if feature[1] == "minor":
+				gene = "_".join(feature[0:-1])
+				pos = "minor"
+				allele = "*"
+			else:
+				gene = "_".join(feature[0:-2])
+				pos = int(feature[-2])
+				allele = feature[-1]
 			weight = float(data[1])
 			if gene not in model:
 				model[gene] = {pos: {allele: weight}}
@@ -818,7 +846,7 @@ def extract_cc_counts(weights_filename, hypothesis_filename, aln_lib, cc_count_l
 																		   cc_count_lib[ft_name]["control_absence_count"]))
 
 
-def extract_gene_sums(aln_list, aln_lib, model, numeric=False):
+def extract_gene_sums(aln_list, aln_lib, model, numeric=False, minor_alleles=None):
 	gene_files = {}
 	gene_sums = {}
 	gene_signifcance_scores = {}
@@ -846,8 +874,9 @@ def extract_gene_sums(aln_list, aln_lib, model, numeric=False):
 			if numeric:
 				gene_sums[gene][seq_id] = sum([model[gene][pos] * aln_lib[gene][seq_id][pos] for pos in model[gene].keys()])
 			else:
-				gene_sums[gene][seq_id] = sum([model[gene][pos].get(aln_lib[gene][seq_id][pos], 0) for pos in model[gene].keys()])
-		# gene_signifcance_scores[gene] = sum([sum(model[gene][pos].values()) for pos in model[gene].keys()])
+				gene_sums[gene][seq_id] = sum([model[gene][pos].get(aln_lib[gene][seq_id][pos], 0) for pos in model[gene].keys() if pos != 'minor'])
+				if minor_alleles is not None and sum([1 for pos in range(len(aln_lib[gene][seq_id])) if aln_lib[gene][seq_id][pos] in minor_alleles[gene].get(pos, [])]) > 0:
+					gene_sums[gene][seq_id] = gene_sums[gene][seq_id] + model[gene].get("minor", {"*": 0}).get("*", 0)
 		if numeric:
 			gene_signifcance_scores[gene] = sum([abs(val) for val in model[gene].values()])
 		else:
@@ -961,7 +990,7 @@ def generate_significance_scores(model_filename, groups_filename, numeric=False)
 				if len(data) > 1:
 					pos_stats[data[0]] = data[1:]
 	for feature in feature_map.keys():
-		if feature == "Intercept":
+		if feature == "Intercept" or feature[-5:] == "minor":
 			continue
 		posname = feature[0:-2]
 		if posname != last_posname:

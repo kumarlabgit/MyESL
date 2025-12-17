@@ -73,6 +73,7 @@ class alnData
 		void setIndelFuzzing(bool indelFuzzing);
 		void setFlatWeights(bool flatWeights);
 		void setDropMajor(bool dropMajor);
+		void setMinorColumn(bool minorColumn);
 		void setDataType(string dataType);
 		void setThreads(int threadCount);
 		void balanceSample();
@@ -92,6 +93,7 @@ class alnData
 		bool numericHeaders = false;
 		bool dropMajor = false;
 		bool flatWeights = false;
+		bool minorColumn = false;
 		char inputDelimiter = '\t';
 		int threads = 1;
 		int countThreshold;
@@ -106,6 +108,7 @@ class alnData
 		vector<string> species;
 		vector<string> groups;
 		vector<string> missingSeqs;
+		vector<string> minorAlleles;
 		vector<vector<int>> groupIndices;
 		map<string, int> geneGroupIndex;
 		map<string, float> traits;
