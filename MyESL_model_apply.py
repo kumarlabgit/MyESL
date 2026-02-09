@@ -134,7 +134,7 @@ def parse_response_file(response_filename, species_list):
 	with open(response_filename, 'r') as file:
 		custom_responses = [tuple(line.strip().split("\t")) for line in file]
 		for custom_response in custom_responses:
-			if responses[custom_response[0]] is None:
+			if responses.get(custom_response, None) is None:
 				try:
 					responses[custom_response[0]] = custom_response[1]
 				except:

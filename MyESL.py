@@ -89,6 +89,11 @@ if __name__ == '__main__':
 	if os.name == "posix":
 		args.threads = 1  # Multithreading currently causes an issue when static compiling with glibc
 
+	if "hypothesis" in str(args.classes) + str(args.tree) + args.aln_list + str(args.output):
+		raise Exception("Please remove reserved word 'hypothesis' from all input file names.")
+	if "response" in str(args.classes) + str(args.tree) + args.aln_list + str(args.output):
+		raise Exception("Please remove reserved word 'response' from all input file names.")
+
 	if args.classes is None and args.tree is None:
 		raise Exception("Must invoke one of --tree or --classes option.")
 	if args.classes is not None and args.tree is not None:
@@ -107,6 +112,8 @@ if __name__ == '__main__':
 			# args.lambda1_grid = "0.1,0.10001,0.00002"
 			# Default to 10x10 grid-search
 			args.lambda1_grid = "0.1,1.0,0.1"
+	if args.no_group_penalty:
+		args.lambda2 = 0.0000000001
 	if args.lambda2_grid is None:
 		if args.lambda2 is not None:
 			args.lambda2_grid = "{},{},{}".format(args.lambda2, args.lambda2 + 0.00001, 0.00002)
@@ -197,8 +204,6 @@ if __name__ == '__main__':
 		args.species_display_limit = int(m_grid_dims[0])
 		args.gene_display_limit = int(m_grid_dims[1])
 		args.m_grid = True
-	if args.no_group_penalty:
-		args.lambda2 = 0.0000000001
 	args.timers = {"preprocessing": {"start": None}, "sglasso": {"start": None}, "analysis": {"start": None}}
 	if args.xval > 1:
 		if args.classes is None:
