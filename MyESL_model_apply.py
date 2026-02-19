@@ -19,7 +19,7 @@ def read_model(filename):
 				model["Intercept"] = float(data[1])
 				continue
 			feature = data[0].split("_")
-			if feature[1] == "minor":
+			if feature[1] == "minor": #this may need to be negatively indexed
 				gene = "_".join(feature[0:-1])
 				pos = "minor"
 				allele = "*"
@@ -34,6 +34,31 @@ def read_model(filename):
 				model[gene].update({pos: {allele: weight}})
 			else:
 				model[gene][pos].update({allele: weight})
+	return model
+
+
+# Reads numeric model file into a dictionary
+def read_numeric_model(filename):
+	model = {}
+	with open(filename, 'r') as file:
+		for line in file:
+			data = line.strip().split("\t")
+			if data[0] == "Intercept":
+				model["Intercept"] = float(data[1])
+				continue
+			feature = data[0].split("_")
+			if feature[1] == "minor": #this may need to be negatively indexed
+				gene = "_".join(feature[0:-1])
+				pos = "minor"
+				allele = "*"
+			else:
+				gene = "_".join(feature[0:-1])
+				pos = int(feature[-1])
+			weight = float(data[1])
+			if gene not in model:
+				model[gene] = {pos: weight}
+			elif pos not in model[gene]:
+				model[gene][pos] = weight
 	return model
 
 
@@ -85,6 +110,36 @@ def extract_gene_sums(aln_list, model, minor_alleles=None):
 	return gene_sums
 
 
+def extract_numeric_gene_sums(aln_list, model, minor_alleles=None):
+	gene_files = {}
+	gene_sums = {}
+	aln_list_dir = os.path.dirname(aln_list)
+	with open(aln_list, 'r') as file:
+		for line in file:
+			for aln_filename in line.strip().split(","):
+				gene_files[os.path.splitext(os.path.basename(aln_filename.strip()))[0]] = os.path.join(aln_list_dir, aln_filename.strip())
+	found_gene_list = list(gene_files.keys())
+	for gene in model.keys():
+		if gene == "Intercept":
+			continue
+		elif gene not in found_gene_list:
+			raise Exception("Gene {} present in model, but not present in input files.".format(gene))
+	for gene in model.keys():
+		if gene == "Intercept":
+			continue
+		gene_sums[gene] = {}
+		alignment = read_numeric(gene_files[gene])
+		for seq_id in alignment.keys():
+			gene_sums[gene][seq_id] = 0
+			for pos in model[gene].keys():
+				if pos == 'minor':
+					continue
+				gene_sums[gene][seq_id] += model[gene][pos] * alignment[seq_id][pos]
+			if minor_alleles is not None and sum([1 for pos in range(len(alignment[seq_id])) if alignment[seq_id][pos] in minor_alleles[gene].get(pos, [])]) > 0:
+				gene_sums[gene][seq_id] = gene_sums[gene][seq_id] + model[gene].get("minor", {"*": 0}).get("*", 0)
+	return gene_sums
+
+
 def read_fasta(filename):
 	with open(filename, 'r') as file:
 		sequences = {}
@@ -101,6 +156,18 @@ def read_fasta(filename):
 		if key and sequence:  # for the last sequence in file
 			sequences[key] = sequence
 	return sequences
+
+
+def read_numeric(filename, delimiter='\t', header=False):
+	with open(filename, 'r') as file:
+		values = {}
+		for line in file:
+			if header:
+				header = False
+				continue
+			data = line.strip().split(delimiter)
+			values[data[0]] = [float(x) for x in data[1:]]
+	return values
 
 
 def apply_group_weights(aln_list_file, gene_sums, group_weights_file, species_list):
@@ -157,8 +224,13 @@ def main(args):
 		minor_alleles = read_minor_alleles(minor_alleles_file)
 	else:
 		minor_alleles = None
-	model = read_model(args.model)
-	gene_sums = extract_gene_sums(args.aln_list, model, minor_alleles=minor_alleles)
+
+	if args.numeric:
+		model = read_numeric_model(args.model)
+		gene_sums = extract_numeric_gene_sums(args.aln_list, model, minor_alleles=minor_alleles)
+	else:
+		model = read_model(args.model)
+		gene_sums = extract_gene_sums(args.aln_list, model, minor_alleles=minor_alleles)
 
 	species_list = set()
 
@@ -205,6 +277,7 @@ if __name__ == '__main__':
 	parser.add_argument("--gene_display_limit", help="Limits the number of genes displayed in the generated graph images.", type=int, default=100)
 	parser.add_argument("--gene_display_cutoff", help="Limits genes displayed in the generated graph images to those with sum-of-squares greater than cutoff value.", type=int, default=0.0)
 	parser.add_argument("--m_grid", help="Generate m-grid graphical output.", action='store_true', default=False)
+	parser.add_argument("--numeric", help="Input model is from numeric inputs rather than alignments.", action='store_true', default=False)
 	args = parser.parse_args()
 	main(args)
 
